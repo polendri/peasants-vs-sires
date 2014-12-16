@@ -1,2 +1,2 @@
-* Ensure proper facing after pathfinding targets are reached;
-* Combat
+* Disable collision on corpses
+* Fix animations
