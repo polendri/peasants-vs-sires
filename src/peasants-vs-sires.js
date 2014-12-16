@@ -1,4 +1,7 @@
 window.addEventListener('load',function(e) {
+  //
+  // Instantiating and configuring Quintus.
+  //
   var Q = Quintus({
     imagePath: "assets/images/",
     dataPath:  "assets/data/",
@@ -11,12 +14,29 @@ window.addEventListener('load',function(e) {
   Q.gravityX = 0;
   Q.gravityY = 0;
 
+
+  //
+  // A component for pathfinding.
+  // TODO: Maybe a better location to put this?
+  //
   Q.component('pathfinding', {
     defaults: {
+      // The pathfinding target (either a Sprite or an [x,y] array).
       target: null,
+      // The entity's movement speed.
       speed: 30,
+      // The entity's facing (front, left, back or right).
       facing: 'front',
-      targetReachedDistance: null
+      // The distance at which the target was collided with, or null if
+      // this has not yet occurred. This is used to ensure that movement
+      // stops when adjacent to the target, but can resume when the target
+      // moves away again.
+      targetReachedDistance: null,
+      // The distance which must be travelled in the current direction
+      // before the direction can be changed. This is used to prevent
+      // stuttery diagonal movement, by making entities commit to larger
+      // straight lines of movement.
+      commitDistance: 0
     },
 
     added: function() {
@@ -29,11 +49,12 @@ window.addEventListener('load',function(e) {
     step: function(dt) {
       var p = this.entity.p;
 
+      // Nothing to do if there is no target.
       if(p.target === null) {
-        this.entity.play("idle_" + p.facing);
         return;
       }
 
+      // Get the X and Y of the target.
       if(Array.isArray(p.target)) {
         var x = p.target[0] - p.x;
         var y = p.target[1] - p.y;
@@ -43,24 +64,38 @@ window.addEventListener('load',function(e) {
         var y = p.target.p.y - p.y;
       }
 
+      // If we're still as close to the target as when we first reached it,
+      // we don't bother to pathfind again.
       if (p.targetReachedDistance !== null) {
         var distance = Math.sqrt(x*x + y*y);
 
-        if(distance >= p.targetReachedDistance) {
+        if(distance <= p.targetReachedDistance) {
           return;
         }
       }
 
+      // Get the X and Y coordinates translated to the isometric plane
+      // (i.e. a 30 degree rotation of the screen coordinates). Movement is
+      // only in the isometric directions so computing this helps us figure out
+      // which direction to move in.
       var isoX = 0.8660*x - 0.5*y;
       var isoY = 0.5*x + 0.8660*y;
+      var coordDiff = Math.abs(isoX) - Math.abs(isoY);
 
-      if(Math.abs(isoX) > Math.abs(isoY)) {
+      // If we've committed to keep moving forward, we log our movement and do
+      // not pick a new direction to face.
+      if (this.commitDistance > 0) {
+        this.commitDistance -= dt * p.speed;
+      }
+      // Otherwise we pick the direction that gets us closest to the target.
+      else if (coordDiff > 0) {
         p.facing = isoX < 0 ? 'front' : 'back';
       }
       else {
         p.facing = isoY > 0 ? 'left' : 'right';
       }
 
+      // Apply the movement in the desired direction.
       if (p.facing === 'front') {
         p.x -= dt * p.speed;
         p.y += dt * p.speed / 2;
@@ -78,20 +113,32 @@ window.addEventListener('load',function(e) {
         p.y -= dt * p.speed / 2;
       }
 
+      // If we're very close to diagonal movement, start making movement
+      // commitments to avoid stuttery movement.
+      if (Math.abs(coordDiff) < p.speed/15) {
+        this.commitDistance = p.speed/6;
+      }
+
       this.entity.play("running_" + p.facing);
     },
 
     bump: function(col) {
       var p = this.entity.p;
 
+      // If we've bumped into the target, we did it!
       if (col.obj === p.target) {
         var x = col.obj.p.x - p.x;
         var y = col.obj.p.y - p.y;
-        p.targetReachedDistance = Math.sqrt(x*x + y*y);
+
+        // Set this so we can skip movement until we're a certain distance
+        // away from the target again.
+        p.targetReachedDistance = Math.sqrt(x*x + y*y) + 5;
+
         this.entity.trigger('targetReached', p.target);
       }
     },
 
+    // Find the closest other entity on the specified team.
     findClosestByTeam: function(team) {
       var stage = Q.stages[Q.activeStage];
       var closestEnemy = null;
@@ -123,6 +170,7 @@ window.addEventListener('load',function(e) {
       return closestEnemy;
     },
 
+    // Finds the closest enemy entity.
     findClosestEnemy: function() {
       if(this.entity.p.team === "peasants") {
         return this.findClosestByTeam("sires");
@@ -133,6 +181,7 @@ window.addEventListener('load',function(e) {
     },
 
     extend: {
+      // Sets a new pathfinding target.
       setTarget: function(target) {
         this.p.target = target;
         this.p.targetReachedDistance = null;
@@ -140,6 +189,10 @@ window.addEventListener('load',function(e) {
     }
   });
 
+
+  //
+  // Animations
+  //
   Q.animations('fighter', {
     idle_front: { frames: [0] },
     running_front: { frames: [1,0,2,0], rate: 1/3 },
@@ -171,6 +224,10 @@ window.addEventListener('load',function(e) {
     dead_right: { frames: [27], },
   });
 
+
+  //
+  // Sprites
+  //
   Q.Sprite.extend("Fighter",{
     init: function(props, defaultProps) {
       defaultProps.cx = 32;
@@ -204,6 +261,7 @@ window.addEventListener('load',function(e) {
         sheet: 'peasant',
         team: "peasants",
       });
+      this.play('idle_back');
     }
   });
 
@@ -214,18 +272,33 @@ window.addEventListener('load',function(e) {
         sheet: 'peasant',
         team: "sires",
       });
+      this.play('idle_front');
     }
   });
 
-  Q.scene("gameplay", function(stage) {          
+
+  //
+  // Scenes
+  //
+
+  // The scene where the main actions happens.
+  Q.scene("gameplay", function(stage) {
+    // Insert a few dummy entities for now.
     var peasant = stage.insert(new Q.Peasant({ x: 40, y: 550 }));
     var sire = stage.insert(new Q.Sire({ x: 1000, y: 50 }));
 
+    // Draw the background image directly to the canvas.
     stage.on('prerender', function(ctx) {
       ctx.drawImage(Q.asset('background.png'), 0, 0);
     });
   });
 
+
+  //
+  // Putting it all together
+  //
+
+  // Load assets and fire things off.
   Q.load("background.png, peasant.png, peasant.json", function() {
     Q.compileSheets("peasant.png","peasant.json");
 
