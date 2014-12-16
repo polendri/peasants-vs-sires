@@ -77,6 +77,7 @@ window.addEventListener('load',function(e) {
         p.targetDistance = null;
         p.adjacentDistance = null;
         p.targetReached = false;
+        this.entity.play("idle_" + p.facing);
         return;
       }
       else if(Array.isArray(p.target)) {
@@ -184,10 +185,22 @@ window.addEventListener('load',function(e) {
 
       // Nothing to do if there is no target.
       if(p.target === null) {
+        this.entity.play("idle_" + p.facing);
         return;
       }
 
       this._updateCoords();
+
+      // If we're acceptably close to the point that's adjacent to the target,
+      // we call it success and stop pathfinding.
+      if(p.adjacentDistance <= p.speed/5) {
+        if (!p.targetReached) {
+          this._onTargetReached();
+        }
+
+        return;
+      }
+
       this._chooseFacing(p.adjacentIsoCoords);
 
       // If we've reached the target already, there is nothing to do unless the
@@ -200,16 +213,6 @@ window.addEventListener('load',function(e) {
           p.targetReached = false;
           this.entity.trigger('targetLost', p.target);
         }
-      }
-
-      // If we're acceptably close to the point that's adjacent to the target,
-      // we call it success and stop pathfinding.
-      if(p.adjacentDistance <= p.speed/5) {
-        if (!p.targetReached) {
-          this._onTargetReached();
-        }
-
-        return;
       }
 
       // Apply the movement in the desired direction if required.
@@ -291,6 +294,7 @@ window.addEventListener('load',function(e) {
       // Sets a new pathfinding target.
       setTarget: function(target) {
         this.p.target = target;
+        this.p.targetReached = false;
       }
     }
   });
@@ -301,6 +305,10 @@ window.addEventListener('load',function(e) {
   //
   Q.component('combat', {
     defaults: {
+      // The target of the attack. Set when an attack starts so that even if
+      // the target itself is changed in the middle of an attack, the original
+      // target takes the damage.
+      attackTarget: null,
       // The entity's health.
       health: 10,
       // The entity's attack range.
@@ -338,12 +346,14 @@ window.addEventListener('load',function(e) {
 
       // If no entity target is set, there is nothing to do.
       if(p.target === null || typeof p.target !== 'object') {
+        this.entity.play("idle_" + p.facing);
         return;
       }
 
       // Start an attack if we're in range, we've reached our target (i.e.
       // we're not moving around anymore), and we've cooled down.
       if(p.targetDistance <= p.range && p.targetReached && p.cooldownCounter <= 0) {
+        p.attackTarget = p.target;
         this.entity.play("striking_" + p.facing);
         this.entity.trigger('attackStart');
       }
@@ -354,7 +364,7 @@ window.addEventListener('load',function(e) {
 
       // Set a cooldown to delay the next time we can attack again.
       p.cooldownCounter = p.cooldown * (1.0 + (2*Math.random() - 1) * p.cooldownVariance);
-      p.target.takeDamage(p.attack * (1.0 + (2*Math.random() - 1) * p.attackVariance));
+      p.attackTarget.takeDamage(p.attack * (1.0 + (2*Math.random() - 1) * p.attackVariance));
     },
 
     extend: {
