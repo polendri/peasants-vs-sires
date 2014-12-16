@@ -27,11 +27,15 @@ window.addEventListener('load',function(e) {
       speed: 30,
       // The entity's facing (front, left, back or right).
       facing: 'front',
-      // The distance at which the target was collided with, or null if
-      // this has not yet occurred. This is used to ensure that movement
-      // stops when adjacent to the target, but can resume when the target
-      // moves away again.
-      targetReachedDistance: null,
+      // The maximum distance we would like to be from the target. Pathfinding
+      // will cease whenever we are at least this close to the target.
+      targetDistance: 20,
+      // Isometric coordinates of the entity.
+      isoCoords: null,
+      // Isometric coordinates of the movement target.
+      targetIsoCoords: null,
+      // True when the target has been reached.
+      targetReached: true,
       // The distance which must be travelled in the current direction
       // before the direction can be changed. This is used to prevent
       // stuttery diagonal movement, by making entities commit to larger
@@ -43,56 +47,137 @@ window.addEventListener('load',function(e) {
       var p = this.entity.p;
       Q._defaults(p, this.defaults);
       this.entity.on('step', this, 'step');
-      this.entity.on("bump.top,bump.bottom,bump.left,bump.right", this, 'bump');
     },
 
-    step: function(dt) {
+    // Updates the isometric coordinates of the entity and its target.
+    _updateIsoCoords: function() {
       var p = this.entity.p;
+      p.isoCoords = [0.8660*p.x - 0.5*p.y, 0.5*p.x + 0.8660*p.y];
 
-      // Nothing to do if there is no target.
       if(p.target === null) {
+        p.targetIsoCoords = null;
         return;
       }
-
-      // Get the X and Y of the target.
-      if(Array.isArray(p.target)) {
-        var x = p.target[0] - p.x;
-        var y = p.target[1] - p.y;
+      else if(Array.isArray(p.target)) {
+        var targetX = p.target[0];
+        var targetY = p.target[1];
       }
       else {
-        var x = p.target.p.x - p.x;
-        var y = p.target.p.y - p.y;
-      }
-
-      // If we're still as close to the target as when we first reached it,
-      // we don't bother to pathfind again.
-      if (p.targetReachedDistance !== null) {
-        var distance = Math.sqrt(x*x + y*y);
-
-        if(distance <= p.targetReachedDistance) {
-          return;
-        }
+        var targetX = p.target.p.x;
+        var targetY = p.target.p.y;
       }
 
       // Get the X and Y coordinates translated to the isometric plane
       // (i.e. a 30 degree rotation of the screen coordinates). Movement is
       // only in the isometric directions so computing this helps us figure out
       // which direction to move in.
-      var isoX = 0.8660*x - 0.5*y;
-      var isoY = 0.5*x + 0.8660*y;
-      var coordDiff = Math.abs(isoX) - Math.abs(isoY);
+      var targetIsoX = 0.8660*targetX - 0.5*targetY;
+      var targetIsoY = 0.5*targetX + 0.8660*targetY;
+      var diffX = targetIsoX - p.isoCoords[0];
+      var diffY = targetIsoY - p.isoCoords[1];
 
-      // If we've committed to keep moving forward, we log our movement and do
-      // not pick a new direction to face.
+      // Adjust the target so that we actually move to be orthogonally beside
+      // the target. We pick the orthogonal side that is closest.
+      if (Math.abs(diffX) > Math.abs(diffY)) {
+        if (diffX > 0) {
+          targetIsoX = targetIsoX - p.targetDistance;
+          targetIsoY = targetIsoY;
+        }
+        else {
+          targetIsoX = targetIsoX + p.targetDistance;
+          targetIsoY = targetIsoY;
+        }
+      }
+      else {
+        if (diffY > 0) {
+          targetIsoX = targetIsoX;
+          targetIsoY = targetIsoY - p.targetDistance;
+        }
+        else {
+          targetIsoX = targetIsoX;
+          targetIsoY = targetIsoY + p.targetDistance;
+        }
+      }
+
+      p.targetIsoCoords = [targetIsoX, targetIsoY];
+    },
+
+    // Choose which direction to face in order to move toward the target.
+    _chooseFacing: function() {
+      var p = this.entity.p;
+
+      // If there's no target, or if we've committed to keep moving forward,
+      // there is nothing to do.
+      if (p.targetIsoCoords === null || this.commitDistance > 0) {
+        return;
+      }
+
+      var diffX = p.targetIsoCoords[0] - p.isoCoords[0];
+      var diffY = p.targetIsoCoords[1] - p.isoCoords[1];
+
+      var coordDiff = Math.abs(diffX) - Math.abs(diffY);
+
+      // If we're very close to diagonal movement, start making movement
+      // commitments to avoid stuttery movement.
+      if (Math.abs(coordDiff) < p.speed/15) {
+        this.commitDistance = p.speed/6;
+      }
+
+      // Pick the direction that gets us closest to the target.
+      if (coordDiff > 0) {
+        p.facing = diffX < 0 ? 'front' : 'back';
+      }
+      else {
+        p.facing = diffY > 0 ? 'left' : 'right';
+      }
+    },
+
+    // Function to be called when the target has first been reached.
+    _onTargetReached: function() {
+      var p = this.entity.p;
+      p.targetReached = true;
+
+      // We may have bumped into them while not moving directly toward them,
+      // so we set the facing one last time to make sure we're pointing at
+      // the target, cancelling out any movement commitment that may have
+      // applied.
+      this._chooseFacing();
+      p.commitDistance = 0;
+
+      this.entity.trigger('targetReached', p.target);
+    },
+
+    step: function(dt) {
+      var p = this.entity.p;
+      this._updateIsoCoords();
+
+      // Nothing to do if there is no target.
+      if(p.targetIsoCoords === null) {
+        return;
+      }
+
+      var diffX = p.targetIsoCoords[0] - p.isoCoords[0];
+      var diffY = p.targetIsoCoords[1] - p.isoCoords[1];
+
+      // If we're acceptably close to the target, we don't bother to pathfind
+      // again.
+      var distance = Math.sqrt(diffX*diffX + diffY*diffY);
+      if(distance <= p.speed/5) {
+        if (!p.targetReached) {
+          this._onTargetReached();
+        }
+
+        return;
+      }
+
+      // If we're committed to movement, we decrease the commitment by the
+      // amount that we're about to move.
       if (this.commitDistance > 0) {
         this.commitDistance -= dt * p.speed;
       }
-      // Otherwise we pick the direction that gets us closest to the target.
-      else if (coordDiff > 0) {
-        p.facing = isoX < 0 ? 'front' : 'back';
-      }
+      // Otherwise we determine a new facing.
       else {
-        p.facing = isoY > 0 ? 'left' : 'right';
+        this._chooseFacing();
       }
 
       // Apply the movement in the desired direction.
@@ -113,29 +198,7 @@ window.addEventListener('load',function(e) {
         p.y -= dt * p.speed / 2;
       }
 
-      // If we're very close to diagonal movement, start making movement
-      // commitments to avoid stuttery movement.
-      if (Math.abs(coordDiff) < p.speed/15) {
-        this.commitDistance = p.speed/6;
-      }
-
       this.entity.play("running_" + p.facing);
-    },
-
-    bump: function(col) {
-      var p = this.entity.p;
-
-      // If we've bumped into the target, we did it!
-      if (col.obj === p.target) {
-        var x = col.obj.p.x - p.x;
-        var y = col.obj.p.y - p.y;
-
-        // Set this so we can skip movement until we're a certain distance
-        // away from the target again.
-        p.targetReachedDistance = Math.sqrt(x*x + y*y) + 5;
-
-        this.entity.trigger('targetReached', p.target);
-      }
     },
 
     // Find the closest other entity on the specified team.
@@ -184,7 +247,7 @@ window.addEventListener('load',function(e) {
       // Sets a new pathfinding target.
       setTarget: function(target) {
         this.p.target = target;
-        this.p.targetReachedDistance = null;
+        this.p.targetReached = false;
       }
     }
   });
@@ -284,8 +347,8 @@ window.addEventListener('load',function(e) {
   // The scene where the main actions happens.
   Q.scene("gameplay", function(stage) {
     // Insert a few dummy entities for now.
-    var peasant = stage.insert(new Q.Peasant({ x: 40, y: 550 }));
-    var sire = stage.insert(new Q.Sire({ x: 1000, y: 50 }));
+    var peasant = stage.insert(new Q.Peasant({ x: 400, y: 450 }));
+    var sire = stage.insert(new Q.Sire({ x: 600, y: 150 }));
 
     // Draw the background image directly to the canvas.
     stage.on('prerender', function(ctx) {
