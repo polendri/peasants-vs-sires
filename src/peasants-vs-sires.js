@@ -103,7 +103,7 @@ window.addEventListener('load',function(e) {
         return p.predicate(target)
           && (!target.p.followerCount || target.p.followerCount < p.maxFollowers);
       });
-      p.retargetCountdown = 1.0;
+      p.retargetCountdown += p.retargetFreq;
 
       if (p.target) {
         if (p.target.followerCount) {
@@ -131,16 +131,20 @@ window.addEventListener('load',function(e) {
       // The entity's facing (front, left, back or right).
       facing: 'front',
       // The distance from a target at which homing will cease.
-      stopDistance: 25,
+      stopDistance: 30,
       // The distance from a target at which homing should resume again.
-      restartDistance: 30,
+      restartDistance: 35,
       // A count is kept for each entity of how many other entities are
       // targeting it. This sets an upper bound on the number of followers,
       // as a way of spreading out targets.
       maxFollowers: 5,
       // The homing target.
       target: null,
-      // Counter used for determining when to look for a new target.
+      // Determines the frequency, in seconds, at which a new target is picked.
+      retargetFreq: 1.0,
+      // Counter used for determining when to look for a new target. Randomized
+      // so as to average out the costly retargeting of many entities over time
+      // rather than doing them all in the same frame.
       retargetCountdown: 0,
       // Counter that must run down before a new facing can be chosen. This is
       // to prevent stuttery behaviour when moving diagonally.
@@ -153,25 +157,28 @@ window.addEventListener('load',function(e) {
       var p = this.entity.p;
       Q._defaults(p, this.defaults);
       this.entity.on('step', this, 'step');
+      p.retargetCountdown = Math.random() * p.retargetFreq;
     },
 
     step: function(dt) {
       var p = this.entity.p;
+      p.retargetCountdown -= dt;
 
       // Try to find a target if we don't have one, if it's dead, or if it's
       // just time to refresh.
-      if (p.target === null
-          || !p.target.has('combat')
-          || p.target.health <= 0
-          || p.retargetCountdown <= 0) {
+      if (p.retargetCountdown <= 0
+          && (p.target === null
+            || !p.target.has('combat')
+            || p.target.health <= 0
+            || p.retargetCountdown <= 0)) {
         this._acquireTarget();
 
-        // Quit if we failed to find one.
-        if (p.target === null) {
-          return;
-        }
-
         p.homingActive = true;
+      }
+
+      // Quit if we failed to find one.
+      if (p.target === null) {
+        return;
       }
 
       // Get the distance to the target.
@@ -220,7 +227,6 @@ window.addEventListener('load',function(e) {
         p.y -= dt * p.speed / 2;
       }
 
-      p.retargetCountdown -= dt;
       p.commitment -= dt;
     },
 
@@ -242,7 +248,7 @@ window.addEventListener('load',function(e) {
       // The entity's health.
       health: 10,
       // The entity's attack range.
-      range: 30,
+      range: 35,
       // The entity's attack damage.
       attack: 4,
       // The variance of the attack damage. Actual damage will be multiplied
@@ -339,28 +345,28 @@ window.addEventListener('load',function(e) {
     striking_front: { frames: [3,4], rate: 1/6, next: 'withdrawing_front', trigger: 'attacked' },
     withdrawing_front: { frames: [4,3], rate: 1/6, next: 'ready_front' },
     dying_front: { frames: [5], rate: 1/3, next: 'dead_front' },
-    dead_front: { frames: [6], },
-    idle_left: { frames: [7] },
-    running_left: { frames: [8,7,9,7], rate: 1/3 },
-    ready_left: { frames: [10] },
-    striking_left: { frames: [10,11], rate: 1/6, next: 'withdrawing_left', trigger: 'attacked' },
-    withdrawing_left: { frames: [11,10], rate: 1/6, next: 'ready_left' },
-    dying_left: { frames: [12], rate: 1/3, next: 'dead_left' },
-    dead_left: { frames: [13], },
-    idle_back: { frames: [14] },
-    running_back: { frames: [15,14,16,14], rate: 1/3 },
-    ready_back: { frames: [17] },
-    striking_back: { frames: [17,18], rate: 1/6, next: 'withdrawing_back', trigger: 'attacked' },
-    withdrawing_back: { frames: [18,17], rate: 1/6, next: 'ready_back' },
-    dying_back: { frames: [19], rate: 1/3, next: 'dead_back' },
-    dead_back: { frames: [20], },
-    idle_right: { frames: [21] },
-    running_right: { frames: [22,21,23,21], rate: 1/3 },
-    ready_right: { frames: [24] },
-    striking_right: { frames: [24,25], rate: 1/6, next: 'withdrawing_right', trigger: 'attacked' },
-    withdrawing_right: { frames: [25,24], rate: 1/6, next: 'ready_right' },
-    dying_right: { frames: [26], rate: 1/3, next: 'dead_right' },
-    dead_right: { frames: [27], },
+    dead_front: { frames: [6,7,8], rate: 15, loop: false, trigger: 'destroy' },
+    idle_left: { frames: [9] },
+    running_left: { frames: [10,9,11,9], rate: 1/3 },
+    ready_left: { frames: [12] },
+    striking_left: { frames: [12,13], rate: 1/6, next: 'withdrawing_left', trigger: 'attacked' },
+    withdrawing_left: { frames: [13,12], rate: 1/6, next: 'ready_left' },
+    dying_left: { frames: [14], rate: 1/3, next: 'dead_left' },
+    dead_left: { frames: [15,16,17], rate: 15, loop: false, trigger: 'destroy' },
+    idle_back: { frames: [18] },
+    running_back: { frames: [19,18,20,18], rate: 1/3 },
+    ready_back: { frames: [21] },
+    striking_back: { frames: [21,22], rate: 1/6, next: 'withdrawing_back', trigger: 'attacked' },
+    withdrawing_back: { frames: [22,21], rate: 1/6, next: 'ready_back' },
+    dying_back: { frames: [23], rate: 1/3, next: 'dead_back' },
+    dead_back: { frames: [24,25,26], rate: 15, loop: false, trigger: 'destroy' },
+    idle_right: { frames: [27] },
+    running_right: { frames: [28,27,29,27], rate: 1/3 },
+    ready_right: { frames: [30] },
+    striking_right: { frames: [30,31], rate: 1/6, next: 'withdrawing_right', trigger: 'attacked' },
+    withdrawing_right: { frames: [31,30], rate: 1/6, next: 'ready_right' },
+    dying_right: { frames: [32], rate: 1/3, next: 'dead_right' },
+    dead_right: { frames: [33,34,35], rate: 15, loop: false, trigger: 'destroy' },
   });
 
 
@@ -371,7 +377,7 @@ window.addEventListener('load',function(e) {
     init: function(props, defaultProps) {
       defaultProps.cx = 32;
       defaultProps.cy = 46;
-      defaultProps.points = [[17,46],[31,38],[46,46],[32,52]];
+      defaultProps.points = [[15,46],[31,36],[48,46],[32,50]];
 
       this._super(props, defaultProps);
       this.add("2d, animation, homing, combat");
@@ -390,10 +396,14 @@ window.addEventListener('load',function(e) {
 
       this.on('attackEnd', function(target, cost) {
       });
+
+      this.on('destroy', function() {
+        this.destroy();
+      });
     },
 
     step: function(dt) {
-      this.p.z = this.p.health > 0 ? this.p.y : 0;
+      this.p.z = this.p.y + (this.p.health > 0 ? 1000 : 0);
 
       // If we're dead, just stahp now. Staaahp.
       if (this.p.health <= 0) {

@@ -2,7 +2,7 @@
   "sire": {
     "tilew": 64,
     "tileh": 64,
-    "cols": 7,
-    "frames": 28
+    "cols": 9,
+    "frames": 36
   }
 }
