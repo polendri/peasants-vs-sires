@@ -6,10 +6,13 @@ window.addEventListener('load',function(e) {
     imagePath: "assets/images/",
     dataPath:  "assets/data/",
   })
-  .include("Sprites, Scenes, Input, Anim, 2D, Touch, UI")
-  .setup("quintusContainer")
-  .controls()
-  .touch();
+  .include("Sprites, Scenes, Input, Anim, 2D, UI")
+  .setup("quintusContainer");
+
+  Q.input.keyboardControls({
+    81: "spawnPeasants",
+    87: "spawnSires"
+  });
 
   Q.gravityX = 0;
   Q.gravityY = 0;
@@ -25,9 +28,6 @@ window.addEventListener('load',function(e) {
     defaults: {
       // The pathfinding target (either a Sprite or an [x,y] array).
       target: null,
-      // True if this component is allowed to move the player (if not, only
-      // facing will be changed).
-      canMove: true,
       // The entity's movement speed.
       speed: 30,
       // The entity's facing (front, left, back or right).
@@ -35,11 +35,11 @@ window.addEventListener('load',function(e) {
       // The distance from the target at which point we consider to have
       // reached it. Pathfinding will cease whenever we are at least this
       // close to the target.
-      goalDistance: 20,
+      goalDistance: 30,
       // The distance from the target at which, after having already reached
       // it, we should begin to pursue it again. This should be greater than
       // or equal to 'goalDistance'.
-      pursuitDistance: 30,
+      pursuitDistance: 40,
       // Whether or not the target has been reached.
       targetReached: false,
       // The distance which must be travelled in the current direction
@@ -71,7 +71,7 @@ window.addEventListener('load',function(e) {
       var p = this.entity.p;
       p.isoCoords = [0.8660*p.x - 0.5*p.y, 0.5*p.x + 0.8660*p.y];
 
-      if(p.target === null) {
+      if (p.target === null) {
         p.targetIsoCoords = null;
         p.adjacentIsoCoords = null;
         p.targetDistance = null;
@@ -80,7 +80,7 @@ window.addEventListener('load',function(e) {
         this.entity.play("idle_" + p.facing);
         return;
       }
-      else if(Array.isArray(p.target)) {
+      else if (Array.isArray(p.target)) {
         var targetX = p.target[0];
         var targetY = p.target[1];
       }
@@ -105,7 +105,7 @@ window.addEventListener('load',function(e) {
       // want to navigate towards a point that is orthogonal to the target. We
       // pick the closest point that is 'goalDistance' away from the target
       // and orthogonal to it.
-      if(Math.abs(diffX) > Math.abs(diffY)) {
+      if (Math.abs(diffX) > Math.abs(diffY)) {
         if (diffX > 0) {
           var adjacentIsoX = targetIsoX - p.goalDistance;
           var adjacentIsoY = targetIsoY;
@@ -150,7 +150,7 @@ window.addEventListener('load',function(e) {
 
       // If we're very close to diagonal movement, start making movement
       // commitments to avoid stuttery movement.
-      if (p.canMove && Math.abs(coordDiff) < p.speed/15) {
+      if (!p.busy && Math.abs(coordDiff) < p.speed/15) {
         this.commitDistance = p.speed/6;
       }
 
@@ -176,7 +176,6 @@ window.addEventListener('load',function(e) {
       this._chooseFacing(p.targetIsoCoords);
       p.commitDistance = 0;
 
-      this.entity.play("idle_" + p.facing);
       this.entity.trigger('targetReached', p.target);
     },
 
@@ -184,7 +183,7 @@ window.addEventListener('load',function(e) {
       var p = this.entity.p;
 
       // Nothing to do if there is no target.
-      if(p.target === null) {
+      if (p.target === null) {
         this.entity.play("idle_" + p.facing);
         return;
       }
@@ -193,7 +192,7 @@ window.addEventListener('load',function(e) {
 
       // If we're acceptably close to the point that's adjacent to the target,
       // we call it success and stop pathfinding.
-      if(p.adjacentDistance <= p.speed/5) {
+      if (p.adjacentDistance <= p.speed/5) {
         if (!p.targetReached) {
           this._onTargetReached();
         }
@@ -205,7 +204,7 @@ window.addEventListener('load',function(e) {
 
       // If we've reached the target already, there is nothing to do unless the
       // target has moved outside of 'pursuitDistance'.
-      if(p.targetReached) {
+      if (p.targetReached) {
         if (p.targetDistance < p.pursuitDistance) {
           return;
         }
@@ -216,7 +215,7 @@ window.addEventListener('load',function(e) {
       }
 
       // Apply the movement in the desired direction if required.
-      if (p.canMove) {
+      if (!p.busy) {
         if (p.facing === 'front') {
           p.x -= dt * p.speed;
           p.y += dt * p.speed / 2;
@@ -250,10 +249,10 @@ window.addEventListener('load',function(e) {
       var closest = null;
       var closestDistance = null;
 
-      for(var i = 0; i < stage.items.length; i++) {
+      for (var i = 0; i < stage.items.length; i++) {
         var target = stage.items[i];
 
-        if(!predicate(target) || target === this.entity) {
+        if (!predicate(target) || target === this.entity) {
           continue;
         }
 
@@ -261,13 +260,13 @@ window.addEventListener('load',function(e) {
         var y = target.y - this.entity.y;
         var targetDistance = Math.sqrt(x*x + y*y);
 
-        if(closest === null) {
+        if (closest === null) {
           closest = target;
           closestDistance = targetDistance;
           continue;
         }
 
-        if(targetDistance < closestDistance) {
+        if (targetDistance < closestDistance) {
           closest = target;
           closestDistance = targetDistance;
         }
@@ -278,12 +277,12 @@ window.addEventListener('load',function(e) {
 
     // Finds the closest enemy entity.
     findClosestEnemy: function() {
-      if(this.entity.p.team === "peasants") {
+      if (this.entity.p.team === "peasants") {
         return this.findClosest(function(t) {
           return t.has('combat') && t.p.health > 0 && t.p.team === "sires";
         });
       }
-      else if(this.entity.p.team === "sires") {
+      else if (this.entity.p.team === "sires") {
         return this.findClosest(function(t) {
           return t.has('combat') && t.p.health > 0 && t.p.team === "peasants";
         });
@@ -293,8 +292,11 @@ window.addEventListener('load',function(e) {
     extend: {
       // Sets a new pathfinding target.
       setTarget: function(target) {
+        if (this.p.target !== target) {
+          this.p.targetReached = false;
+        }
+
         this.p.target = target;
-        this.p.targetReached = false;
       }
     }
   });
@@ -312,7 +314,7 @@ window.addEventListener('load',function(e) {
       // The entity's health.
       health: 10,
       // The entity's attack range.
-      range: 30,
+      range: 40,
       // The entity's attack damage.
       attack: 4,
       // The variance of the attack damage. Actual damage will be multiplied
@@ -336,23 +338,24 @@ window.addEventListener('load',function(e) {
     step: function(dt) {
       var p = this.entity.p;
 
-      if(p.cooldownCounter > 0) {
+      if (p.cooldownCounter > 0) {
         p.cooldownCounter -= dt;
 
-        if(p.cooldownCounter <= 0) {
+        if (p.cooldownCounter <= 0) {
           this.entity.trigger('attackEnd');
         }
       }
 
       // If no entity target is set, there is nothing to do.
-      if(p.target === null || typeof p.target !== 'object') {
+      if (p.target === null || typeof p.target !== 'object') {
         this.entity.play("idle_" + p.facing);
         return;
       }
 
-      // Start an attack if we're in range, we've reached our target (i.e.
-      // we're not moving around anymore), and we've cooled down.
-      if(p.targetDistance <= p.range && p.targetReached && p.cooldownCounter <= 0) {
+      // Start an attack if we're not already attacking, we're in range,
+      // we've reached our target (i.e. we're not moving around anymore),
+      // and we've cooled down.
+      if (p.attackTarget === null && p.targetDistance <= p.range && p.targetReached && p.cooldownCounter <= 0) {
         p.attackTarget = p.target;
         this.entity.play("striking_" + p.facing);
         this.entity.trigger('attackStart');
@@ -362,9 +365,14 @@ window.addEventListener('load',function(e) {
     attacked: function(dt) {
       var p = this.entity.p;
 
+      if (p.attackTarget.takeDamage) {
+        p.attackTarget.takeDamage(p.attack * (1.0 + (2*Math.random() - 1) * p.attackVariance));
+      }
+
+      p.attackTarget = null;
+
       // Set a cooldown to delay the next time we can attack again.
       p.cooldownCounter = p.cooldown * (1.0 + (2*Math.random() - 1) * p.cooldownVariance);
-      p.attackTarget.takeDamage(p.attack * (1.0 + (2*Math.random() - 1) * p.attackVariance));
     },
 
     extend: {
@@ -372,7 +380,7 @@ window.addEventListener('load',function(e) {
       takeDamage: function(dmg) {
         this.p.health -= dmg;
 
-        if(this.p.health <= 0) {
+        if (this.p.health <= 0) {
           this.trigger('dead');
           this.play("dying_" + this.p.facing);
           this.del('combat');
@@ -422,7 +430,7 @@ window.addEventListener('load',function(e) {
 
 
   //
-  // Sprites
+  // Sprites and other Game Objects
   //
   Q.Sprite.extend("Fighter",{
     init: function(props, defaultProps) {
@@ -443,13 +451,14 @@ window.addEventListener('load',function(e) {
       this.play("idle_" + this.p.facing);
 
       this.on('targetReached', function(target) {
-        // If we reached a human target, start attacking it
-        if (typeof target === 'object') {
-          this.play("ready_" + this.p.facing);
-        }
-        // Otherwise chill
-        else {
-          this.play("idle_" + this.p.facing);
+        if (!this.p.busy) {
+          if (typeof target === 'object') {
+            this.play("ready_" + this.p.facing);
+          }
+          // Otherwise chill
+          else {
+            this.play("idle_" + this.p.facing);
+          }
         }
       });
 
@@ -457,16 +466,16 @@ window.addEventListener('load',function(e) {
       });
 
       this.on('attackStart', function(target, cost) {
-        this.canMove = false;
+        this.p.busy = true;
       });
 
       this.on('attackEnd', function(target, cost) {
-        this.canMove = true;
+        this.p.busy = false;
       });
     },
 
     step: function(dt) {
-      this.p.z = this.p.y;
+      this.p.z = this.p.health > 0 ? this.p.y : 0;
 
       // If we're dead, just stahp now. Staaahp.
       if (this.p.health <= 0) {
@@ -502,9 +511,32 @@ window.addEventListener('load',function(e) {
         sheet: 'peasant',
         team: "sires",
         facing: "front",
-        health: 10,
-        attack: 4
+        health: 15,
+        attack: 4,
+        cooldown: 0.5
       });
+    }
+  });
+
+  // Invisible object that spawns other entities.
+  Q.Sprite.extend("Spawner", {
+    init: function(spawnKey, p) {
+      this._super(p, {
+        // The number of entities in each wave.
+        waveSize: 1,
+        // The variance, in pixels, to apply randomly to each spawned entity.
+        placementVariance: 50,
+      });
+
+      Q.input.on(spawnKey, this, "spawnWave");
+    },
+
+    spawnWave: function(dt) {
+      for (var i = 0; i < this.p.waveSize; i++) {
+        var x = this.p.x + (2*Math.random() - 1) * this.p.placementVariance;
+        var y = this.p.y + (2*Math.random() - 1) * this.p.placementVariance;
+        this.stage.insert(this.p.createNew(x, y));
+      }
     }
   });
 
@@ -515,19 +547,23 @@ window.addEventListener('load',function(e) {
 
   // The scene where the main actions happens.
   Q.scene("gameplay", function(stage) {
-    // Insert a few dummy entities for now.
-    stage.insert(new Q.Peasant({ x: 20, y: 400 }));
-    stage.insert(new Q.Peasant({ x: 40, y: 410 }));
-    stage.insert(new Q.Peasant({ x: 60, y: 420 }));
-    stage.insert(new Q.Peasant({ x: 80, y: 430 }));
-    stage.insert(new Q.Peasant({ x: 100, y: 440 }));
-    stage.insert(new Q.Peasant({ x: 120, y: 450 }));
-    stage.insert(new Q.Peasant({ x: 140, y: 460 }));
-    stage.insert(new Q.Peasant({ x: 160, y: 470 }));
-    stage.insert(new Q.Peasant({ x: 180, y: 480 }));
-    stage.insert(new Q.Peasant({ x: 200, y: 490 }));
-    stage.insert(new Q.Sire({ x: 900, y: 50 }));
-    stage.insert(new Q.Sire({ x: 920, y: 60 }));
+    // Insert a few dummy spawners for now.
+    stage.insert(new Q.Spawner("spawnPeasants", {
+      x: 60,
+      y: 550,
+      waveSize: 5,
+      createNew: function(x, y) {
+        return new Q.Peasant({ x: x, y: y});
+      }
+    }));
+
+    stage.insert(new Q.Spawner("spawnSires", {
+      x: 900,
+      y: 100,
+      createNew: function(x, y) {
+        return new Q.Sire({ x: x, y: y});
+      }
+    }));
 
     // Draw the background image directly to the canvas.
     stage.on('prerender', function(ctx) {
