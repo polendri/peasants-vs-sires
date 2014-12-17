@@ -301,7 +301,7 @@ window.addEventListener('load',function(e) {
     attacked: function(dt) {
       var p = this.entity.p;
 
-      if (p.attackTarget.takeDamage) {
+      if (p.attackTarget && p.attackTarget.takeDamage) {
         p.attackTarget.takeDamage(p.attack * (1.0 + (2*Math.random() - 1) * p.attackVariance));
       }
 
@@ -421,7 +421,7 @@ window.addEventListener('load',function(e) {
     init: function(p) {
       this._super(p, {
         sprite: 'fighter',
-        sheet: 'peasant',
+        sheet: 'sire',
         team: "sires",
         predicate: function(t) {
           return t.has('combat') && t.p.health > 0 && t.p.team === "peasants";
@@ -493,8 +493,9 @@ window.addEventListener('load',function(e) {
   //
 
   // Load assets and fire things off.
-  Q.load("background.png, peasant.png, peasant.json", function() {
+  Q.load("background.png, peasant.png, peasant.json, sire.png, sire.json", function() {
     Q.compileSheets("peasant.png","peasant.json");
+    Q.compileSheets("sire.png","sire.json");
 
     Q.stageScene("gameplay", { sort: true });
   });
