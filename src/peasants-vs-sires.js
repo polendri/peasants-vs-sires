@@ -6,8 +6,9 @@ window.addEventListener('load',function(e) {
     imagePath: "assets/images/",
     dataPath:  "assets/data/",
   })
-  .include("Sprites, Scenes, Input, Anim, 2D, UI")
-  .setup("quintusContainer");
+  .include("Sprites, Scenes, Input, Anim, 2D, Touch, UI")
+  .setup("quintusContainer")
+  .touch();
 
   Q.input.keyboardControls({
     81: "spawnPeasants",
@@ -461,6 +462,35 @@ window.addEventListener('load',function(e) {
   // Scenes
   //
 
+  Q.scene("mainMenu", function(stage) {
+    var container = stage.insert(new Q.UI.Container({
+      fill: "gray",
+      border: 5,
+      shadow: 10,
+      shadowColor: "rgba(0,0,0,0.5)",
+      x: Q.width / 2,
+      y: Q.height / 2
+    }));
+
+    stage.insert(
+      new Q.UI.Button(
+        {
+          label: "Play",
+          x: 0,
+          y: 0,
+          fill: "#990000",
+          border: 5,
+          shadow: 10,
+          shadowColor: "rgba(0,0,0,0.5)"
+        },
+        function() {
+          Q.stageScene("gameplay", { sort: true });
+        }),
+      container);
+
+    container.fit(20,20);
+  });
+
   // The scene where the main actions happens.
   Q.scene("gameplay", function(stage) {
     // Insert a few dummy spawners for now.
@@ -497,7 +527,7 @@ window.addEventListener('load',function(e) {
     Q.compileSheets("peasant.png","peasant.json");
     Q.compileSheets("sire.png","sire.json");
 
-    Q.stageScene("gameplay", { sort: true });
+    Q.stageScene("mainMenu");
   });
 });
 
