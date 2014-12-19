@@ -11,8 +11,10 @@ window.addEventListener('load',function(e) {
   .touch();
 
   Q.input.keyboardControls({
-    81: "spawnPeasants",
-    87: "spawnSires"
+    81: "spawnPoorPeasants",      // Q
+    65: "spawnPitchforkPeasants", // A
+    90: "spawnArmedPeasants",     // Z
+    87: "spawnSires"              // W
   });
 
   Q.gravityX = 0;
@@ -373,6 +375,8 @@ window.addEventListener('load',function(e) {
   //
   // Sprites and other Game Objects
   //
+
+  // Abstract Fighter class
   Q.Sprite.extend("Fighter",{
     init: function(props, defaultProps) {
       defaultProps.cx = 32;
@@ -412,35 +416,68 @@ window.addEventListener('load',function(e) {
     }
   });
 
-  Q.Fighter.extend("Peasant",{
+  // Abstract Peasant class
+  Q.Fighter.extend("PeasantBase", {
+    init: function(props, defaultProps) {
+        defaultProps.sprite = 'fighter';
+        defaultProps.team = "peasants";
+        defaultProps.predicate = function(t) {
+          return t.has('combat') && t.p.health > 0 && t.p.team === "sires";
+        };
+        defaultProps.facing = "back";
+        this._super(props, defaultProps);
+      }
+  });
+
+  Q.PeasantBase.extend("PoorPeasant", {
     init: function(p) {
       this._super(p, {
-        sprite: 'fighter',
-        sheet: 'peasant',
-        team: "peasants",
-        predicate: function(t) {
-          return t.has('combat') && t.p.health > 0 && t.p.team === "sires";
-        },
-        facing: "back",
-        health: 4,
+        sheet: 'poor_peasant',
+        health: 2,
         attack: 1
       });
     }
   });
 
-  Q.Fighter.extend("Sire",{
+  Q.PeasantBase.extend("PitchforkPeasant",{
     init: function(p) {
       this._super(p, {
-        sprite: 'fighter',
-        sheet: 'sire',
-        team: "sires",
-        predicate: function(t) {
+        sheet: 'pitchfork_peasant',
+        health: 4,
+        attack: 2
+      });
+    }
+  });
+
+  Q.PeasantBase.extend("ArmedPeasant",{
+    init: function(p) {
+      this._super(p, {
+        sheet: 'armed_peasant',
+        health: 6,
+        attack: 4
+      });
+    }
+  });
+
+  // Abstract Sire class
+  Q.Fighter.extend("SireBase",{
+    init: function(props, defaultProps) {
+        defaultProps.sprite = 'fighter';
+        defaultProps.team = "sires";
+        defaultProps.predicate = function(t) {
           return t.has('combat') && t.p.health > 0 && t.p.team === "peasants";
-        },
-        facing: "front",
+        };
+        defaultProps.facing = "front";
+        this._super(props, defaultProps);
+      }
+  });
+
+  Q.SireBase.extend("Sire",{
+    init: function(p) {
+      this._super(p, {
+        sheet: 'sire',
         health: 10,
-        attack: 4,
-        cooldown: 0.5
+        attack: 4
       });
     }
   });
@@ -504,15 +541,30 @@ window.addEventListener('load',function(e) {
   // The scene where the main actions happens.
   Q.scene("gameplay", function(stage) {
     // Insert a few dummy spawners for now.
-    stage.insert(new Q.Spawner("spawnPeasants", {
+    stage.insert(new Q.Spawner("spawnPoorPeasants", {
+      x: 60,
+      y: 550,
+      waveSize: 7,
+      createNew: function(x, y) {
+        return new Q.PoorPeasant({ x: x, y: y});
+      }
+    }));
+    stage.insert(new Q.Spawner("spawnPitchforkPeasants", {
       x: 60,
       y: 550,
       waveSize: 5,
       createNew: function(x, y) {
-        return new Q.Peasant({ x: x, y: y});
+        return new Q.PitchforkPeasant({ x: x, y: y});
       }
     }));
-
+    stage.insert(new Q.Spawner("spawnArmedPeasants", {
+      x: 60,
+      y: 550,
+      waveSize: 5,
+      createNew: function(x, y) {
+        return new Q.ArmedPeasant({ x: x, y: y});
+      }
+    }));
     stage.insert(new Q.Spawner("spawnSires", {
       x: 900,
       y: 100,
@@ -533,11 +585,19 @@ window.addEventListener('load',function(e) {
   //
 
   // Load assets and fire things off.
-  Q.load("background.png, peasant.png, peasant.json, sire.png, sire.json", function() {
-    Q.compileSheets("peasant.png","peasant.json");
-    Q.compileSheets("sire.png","sire.json");
+  Q.load(
+    "background.png, " +
+      "poor_peasant.png, poor_peasant.json, " +
+      "pitchfork_peasant.png, pitchfork_peasant.json, " +
+      "armed_peasant.png, armed_peasant.json, " +
+      "sire.png, sire.json",
+    function() {
+        Q.compileSheets("poor_peasant.png","poor_peasant.json");
+        Q.compileSheets("pitchfork_peasant.png","pitchfork_peasant.json");
+        Q.compileSheets("armed_peasant.png","armed_peasant.json");
+        Q.compileSheets("sire.png","sire.json");
 
-    Q.stageScene("mainMenu");
-  });
+        Q.stageScene("mainMenu");
+    });
 });
 

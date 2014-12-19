@@ -1,0 +1,8 @@
+{
+  "poor_peasant": {
+    "tilew": 64,
+    "tileh": 64,
+    "cols": 9,
+    "frames": 36
+  }
+}
