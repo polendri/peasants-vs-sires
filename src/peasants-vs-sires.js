@@ -14,7 +14,9 @@ window.addEventListener('load',function(e) {
     81: "spawnPoorPeasants",      // Q
     65: "spawnPitchforkPeasants", // A
     90: "spawnArmedPeasants",     // Z
-    87: "spawnSires"              // W
+    87: "spawnKnight",            // W
+    83: "spawnLord",              // S
+    88: "spawnKing"               // X
   });
 
   Q.gravityX = 0;
@@ -472,12 +474,32 @@ window.addEventListener('load',function(e) {
       }
   });
 
-  Q.SireBase.extend("Sire",{
+  Q.SireBase.extend("Knight",{
     init: function(p) {
       this._super(p, {
-        sheet: 'sire',
+        sheet: 'knight',
         health: 10,
         attack: 4
+      });
+    }
+  });
+
+  Q.SireBase.extend("Lord",{
+    init: function(p) {
+      this._super(p, {
+        sheet: 'lord',
+        health: 15,
+        attack: 6
+      });
+    }
+  });
+
+  Q.SireBase.extend("King",{
+    init: function(p) {
+      this._super(p, {
+        sheet: 'king',
+        health: 20,
+        attack: 8
       });
     }
   });
@@ -565,11 +587,25 @@ window.addEventListener('load',function(e) {
         return new Q.ArmedPeasant({ x: x, y: y});
       }
     }));
-    stage.insert(new Q.Spawner("spawnSires", {
+    stage.insert(new Q.Spawner("spawnKnight", {
       x: 900,
       y: 100,
       createNew: function(x, y) {
-        return new Q.Sire({ x: x, y: y});
+        return new Q.Knight({ x: x, y: y});
+      }
+    }));
+    stage.insert(new Q.Spawner("spawnLord", {
+      x: 900,
+      y: 100,
+      createNew: function(x, y) {
+        return new Q.Lord({ x: x, y: y});
+      }
+    }));
+    stage.insert(new Q.Spawner("spawnKing", {
+      x: 900,
+      y: 100,
+      createNew: function(x, y) {
+        return new Q.King({ x: x, y: y});
       }
     }));
 
@@ -590,12 +626,16 @@ window.addEventListener('load',function(e) {
       "poor_peasant.png, poor_peasant.json, " +
       "pitchfork_peasant.png, pitchfork_peasant.json, " +
       "armed_peasant.png, armed_peasant.json, " +
-      "sire.png, sire.json",
+      "knight.png, knight.json, " +
+      "lord.png, lord.json, " +
+      "king.png, king.json",
     function() {
         Q.compileSheets("poor_peasant.png","poor_peasant.json");
         Q.compileSheets("pitchfork_peasant.png","pitchfork_peasant.json");
         Q.compileSheets("armed_peasant.png","armed_peasant.json");
-        Q.compileSheets("sire.png","sire.json");
+        Q.compileSheets("knight.png","knight.json");
+        Q.compileSheets("lord.png","lord.json");
+        Q.compileSheets("king.png","king.json");
 
         Q.stageScene("mainMenu");
     });
