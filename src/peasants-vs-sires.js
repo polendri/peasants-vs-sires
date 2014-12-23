@@ -609,9 +609,11 @@ window.addEventListener('load',function(e) {
       }
     }));
 
-    // Draw the background image directly to the canvas.
     stage.on('prerender', function(ctx) {
       ctx.drawImage(Q.asset('background.png'), 0, 0);
+    });
+    stage.on('postrender', function(ctx) {
+      ctx.drawImage(Q.asset('gui.png'), 0, 0);
     });
   });
 
@@ -623,6 +625,14 @@ window.addEventListener('load',function(e) {
   // Load assets and fire things off.
   Q.load(
     "background.png, " +
+      "gui.png, " +
+      "peasant_help_button_disabled.png, peasant_help_button_enabled.png, peasant_help_button_active.png, " +
+      "peasant_fight_button_disabled.png, peasant_fight_button_enabled.png, peasant_fight_button_active.png, " +
+      "sire_help_button_disabled.png, sire_help_button_enabled.png, sire_help_button_active.png, " +
+      "sire_fight_button_disabled.png, sire_fight_button_enabled.png, sire_fight_button_active.png, " +
+      "peasant_timeline_background.png, " +
+      "sire_timeline_background.png, " +
+      "timeline_item_background.png, " +
       "poor_peasant.png, poor_peasant.json, " +
       "pitchfork_peasant.png, pitchfork_peasant.json, " +
       "armed_peasant.png, armed_peasant.json, " +
