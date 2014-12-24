@@ -522,14 +522,94 @@ window.addEventListener('load',function(e) {
     }
   });
 
-  // Sprite used to indicate whether a button is disabled, enabled, or active.
+  // Sprite used to indicate whether a key is disabled, enabled, or pressed.
+  // Expects subclasses to add 'disabledAsset', 'enabledAsset', and 'pressedAsset'
+  // properties, along with a 'key' property specifying the key to track.
   Q.Sprite.extend("ButtonIndicator", {
     init: function(p) {
-      this._super(p);
-
-      this.on('homingStarted', function(target) {
-        this.play("running_" + this.p.facing);
+      this._super(p, {
+        cx: 0,
+        cy: 0,
+        enabled: true,
+        asset: p.enabledAsset
       });
+    },
+
+    step: function(dt) {
+      if (!this.p.enabled) {
+        this.p.asset = this.p.disabledAsset;
+      }
+      else if (Q.inputs[this.p.key]) {
+        this.p.asset = this.p.pressedAsset;
+      }
+      else {
+        this.p.asset = this.p.enabledAsset;
+      }
+    }
+  });
+
+  Q.Sprite.extend("TimelineItemBackground", {
+    init: function(p) {
+      this._super(p, {
+        z: 0,
+        cx: 0,
+        cy: 0,
+        asset: "timeline_item_background.png",
+        direction: 'left',
+        speed: 30,
+        targetX: 0,
+        targetReached: false,
+        callback: function() { }
+      });
+    },
+
+    step: function(dt) {
+      if (this.p.targetReached) {
+        return;
+      }
+
+      var i = this.p.direction === 'left' ? -1 : 1;
+      this.p.x += i * this.p.speed * dt;
+
+      if (this.p.x <= this.p.targetX) {
+        this.p.targetReached = true;
+        this.p.callback(this);
+      }
+    }
+  });
+
+  // Puts items on a timeline which move steadily towards the other end.
+  Q.Sprite.extend("Timeline", {
+    init: function(p) {
+      this._super(p, {
+        cx: 0,
+        cy: 0,
+        duration: 15,
+        width: 747,
+        direction: 'left',
+      });
+    },
+
+    step: function(dt) {
+    },
+
+    addItem: function(itemSprite) {
+      this.stage.insert(new Q.TimelineItemBackground({
+        x: this.p.x + (this.p.direction === 'left' ? this.p.width - 1 : 0),
+        y: this.p.y,
+        direction: this.p.direction,
+        speed: this.p.width / this.p.duration,
+        targetX: this.p.x + (this.p.direction === 'left' ? 0 : this.p.width - 1),
+        callback: function(item) {
+          // TODO
+          /*
+          if (item.foregroundSprite) {
+            item.foregroundSprite.destroy();
+          }
+          item.destroy();
+          */
+        }
+      }));
     }
   });
 
@@ -610,6 +690,50 @@ window.addEventListener('load',function(e) {
 
   // The scene with the UI content for the gameplay scene.
   Q.scene("gui", function(stage) {
+    var peasantHelpButton = new Q.ButtonIndicator({
+        x: 6,
+        y: 64,
+        key: 'peasantHelp',
+        disabledAsset: 'peasant_help_button_disabled.png',
+        enabledAsset: 'peasant_help_button_enabled.png',
+        pressedAsset: 'peasant_help_button_pressed.png',
+    });
+    var peasantFightButton = new Q.ButtonIndicator({
+        x: 76,
+        y: 64,
+        key: 'peasantFight',
+        disabledAsset: 'peasant_fight_button_disabled.png',
+        enabledAsset: 'peasant_fight_button_enabled.png',
+        pressedAsset: 'peasant_fight_button_pressed.png',
+    });
+    var sireHelpButton = new Q.ButtonIndicator({
+        x: 927,
+        y: 472,
+        key: 'sireHelp',
+        disabledAsset: 'sire_help_button_disabled.png',
+        enabledAsset: 'sire_help_button_enabled.png',
+        pressedAsset: 'sire_help_button_pressed.png',
+    });
+    var sireFightButton = new Q.ButtonIndicator({
+        x: 997,
+        y: 472,
+        key: 'sireFight',
+        disabledAsset: 'sire_fight_button_disabled.png',
+        enabledAsset: 'sire_fight_button_enabled.png',
+        pressedAsset: 'sire_fight_button_pressed.png',
+    });
+    stage.insert(peasantHelpButton);
+    stage.insert(peasantFightButton);
+    stage.insert(sireHelpButton);
+    stage.insert(sireFightButton);
+
+    var peasantTimeline = new Q.Timeline({
+        x: 8,
+        y: 8,
+    });
+    stage.insert(peasantTimeline);
+    peasantTimeline.addItem();
+
     stage.on('prerender', function(ctx) {
       ctx.drawImage(Q.asset('gui.png'), 0, 0);
     });
@@ -624,12 +748,10 @@ window.addEventListener('load',function(e) {
   Q.load(
     "background.png, " +
       "gui.png, " +
-      "peasant_help_button_disabled.png, peasant_help_button_enabled.png, peasant_help_button_active.png, " +
-      "peasant_fight_button_disabled.png, peasant_fight_button_enabled.png, peasant_fight_button_active.png, " +
-      "sire_help_button_disabled.png, sire_help_button_enabled.png, sire_help_button_active.png, " +
-      "sire_fight_button_disabled.png, sire_fight_button_enabled.png, sire_fight_button_active.png, " +
-      "peasant_timeline_background.png, " +
-      "sire_timeline_background.png, " +
+      "peasant_help_button_disabled.png, peasant_help_button_enabled.png, peasant_help_button_pressed.png, " +
+      "peasant_fight_button_disabled.png, peasant_fight_button_enabled.png, peasant_fight_button_pressed.png, " +
+      "sire_help_button_disabled.png, sire_help_button_enabled.png, sire_help_button_pressed.png, " +
+      "sire_fight_button_disabled.png, sire_fight_button_enabled.png, sire_fight_button_pressed.png, " +
       "timeline_item_background.png, " +
       "poor_peasant.png, poor_peasant.json, " +
       "pitchfork_peasant.png, pitchfork_peasant.json, " +
