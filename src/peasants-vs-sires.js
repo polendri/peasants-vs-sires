@@ -11,12 +11,10 @@ window.addEventListener('load',function(e) {
   .touch();
 
   Q.input.keyboardControls({
-    81: "spawnPoorPeasants",      // Q
-    65: "spawnPitchforkPeasants", // A
-    90: "spawnArmedPeasants",     // Z
-    87: "spawnKnight",            // W
-    83: "spawnLord",              // S
-    88: "spawnKing"               // X
+    81: "peasantHelp",   // Q
+    87: "peasantFight",  // W
+    79: "sireHelp",      // O
+    80: "sireFight"      // P
   });
 
   Q.gravityX = 0;
@@ -446,7 +444,7 @@ window.addEventListener('load',function(e) {
       this._super(p, {
         sheet: 'pitchfork_peasant',
         health: 4,
-        attack: 2
+        attack: 1.5
       });
     }
   });
@@ -456,7 +454,7 @@ window.addEventListener('load',function(e) {
       this._super(p, {
         sheet: 'armed_peasant',
         health: 6,
-        attack: 4
+        attack: 2
       });
     }
   });
@@ -506,23 +504,32 @@ window.addEventListener('load',function(e) {
 
   // Invisible object that spawns other entities.
   Q.Sprite.extend("Spawner", {
-    init: function(spawnKey, p) {
+    init: function(p) {
       this._super(p, {
         // The number of entities in each wave.
         waveSize: 1,
         // The variance, in pixels, to apply randomly to each spawned entity.
         placementVariance: 50,
       });
-
-      Q.input.on(spawnKey, this, "spawnWave");
     },
 
-    spawnWave: function(dt) {
+    spawnWave: function(spawnKey) {
       for (var i = 0; i < this.p.waveSize; i++) {
         var x = this.p.x + (2*Math.random() - 1) * this.p.placementVariance;
         var y = this.p.y + (2*Math.random() - 1) * this.p.placementVariance;
-        this.stage.insert(this.p.createNew(x, y));
+        this.stage.insert(this.p.spawnFuncs[spawnKey].call(x, y));
       }
+    }
+  });
+
+  // Sprite used to indicate whether a button is disabled, enabled, or active.
+  Q.Sprite.extend("ButtonIndicator", {
+    init: function(p) {
+      this._super(p);
+
+      this.on('homingStarted', function(target) {
+        this.play("running_" + this.p.facing);
+      });
     }
   });
 
@@ -553,66 +560,57 @@ window.addEventListener('load',function(e) {
           shadowColor: "rgba(0,0,0,0.5)"
         },
         function() {
-          Q.stageScene("gameplay", { sort: true });
+          Q.stageScene("gameplay", 0, { sort: true });
+          Q.stageScene("gui", 1, { sort: true });
         }),
       container);
 
     container.fit(20,20);
   });
 
-  // The scene where the main actions happens.
+  // The scene where the main action happens.
   Q.scene("gameplay", function(stage) {
-    // Insert a few dummy spawners for now.
-    stage.insert(new Q.Spawner("spawnPoorPeasants", {
-      x: 60,
-      y: 550,
-      waveSize: 7,
-      createNew: function(x, y) {
-        return new Q.PoorPeasant({ x: x, y: y});
-      }
+    stage.insert(new Q.Spawner({
+        x: 60,
+        y: 550,
+        waveSize: 7,
+        spawnFuncs: {
+          poor_peasants: function(x, y) {
+            return new Q.PoorPeasant({ x: x, y: y});
+          },
+          pitchfork_peasants: function(x, y) {
+            return new Q.PitchforkPeasant({ x: x, y: y});
+          },
+          armed_peasants: function(x, y) {
+            return new Q.ArmedPeasant({ x: x, y: y});
+          }
+        }
     }));
-    stage.insert(new Q.Spawner("spawnPitchforkPeasants", {
-      x: 60,
-      y: 550,
-      waveSize: 5,
-      createNew: function(x, y) {
-        return new Q.PitchforkPeasant({ x: x, y: y});
-      }
-    }));
-    stage.insert(new Q.Spawner("spawnArmedPeasants", {
-      x: 60,
-      y: 550,
-      waveSize: 5,
-      createNew: function(x, y) {
-        return new Q.ArmedPeasant({ x: x, y: y});
-      }
-    }));
-    stage.insert(new Q.Spawner("spawnKnight", {
-      x: 900,
-      y: 100,
-      createNew: function(x, y) {
-        return new Q.Knight({ x: x, y: y});
-      }
-    }));
-    stage.insert(new Q.Spawner("spawnLord", {
-      x: 900,
-      y: 100,
-      createNew: function(x, y) {
-        return new Q.Lord({ x: x, y: y});
-      }
-    }));
-    stage.insert(new Q.Spawner("spawnKing", {
-      x: 900,
-      y: 100,
-      createNew: function(x, y) {
-        return new Q.King({ x: x, y: y});
-      }
+    stage.insert(new Q.Spawner({
+        x: 60,
+        y: 550,
+        waveSize: 7,
+        spawnFuncs: {
+          knight: function(x, y) {
+            return new Q.Knight({ x: x, y: y});
+          },
+          lord: function(x, y) {
+            return new Q.Lord({ x: x, y: y});
+          },
+          king: function(x, y) {
+            return new Q.King({ x: x, y: y});
+          }
+        }
     }));
 
     stage.on('prerender', function(ctx) {
       ctx.drawImage(Q.asset('background.png'), 0, 0);
     });
-    stage.on('postrender', function(ctx) {
+  });
+
+  // The scene with the UI content for the gameplay scene.
+  Q.scene("gui", function(stage) {
+    stage.on('prerender', function(ctx) {
       ctx.drawImage(Q.asset('gui.png'), 0, 0);
     });
   });
