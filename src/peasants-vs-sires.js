@@ -548,19 +548,22 @@ window.addEventListener('load',function(e) {
     }
   });
 
-  Q.Sprite.extend("TimelineItemBackground", {
-    init: function(p) {
+  Q.Sprite.extend("TimelineItem", {
+    init: function(stage, p) {
       this._super(p, {
-        z: 0,
         cx: 0,
         cy: 0,
-        asset: "timeline_item_background.png",
+        //asset: "timeline_item_background.png", //TODO
+        sprite: 'fighter',
         direction: 'left',
         speed: 30,
         targetX: 0,
         targetReached: false,
         callback: function() { }
       });
+
+      this.add("animation");
+      this.play(this.p.direction === 'left' ? 'running_front' : 'running_left');
     },
 
     step: function(dt) {
@@ -569,12 +572,20 @@ window.addEventListener('load',function(e) {
       }
 
       var i = this.p.direction === 'left' ? -1 : 1;
-      this.p.x += i * this.p.speed * dt;
+      var dx = i * this.p.speed * dt;
+      this.p.x += dx;
 
       if (this.p.x <= this.p.targetX) {
         this.p.targetReached = true;
+        this.p.x = this.p.targetX;
+        this.play(this.p.direction === 'left' ? 'idle_front' : 'idle_left');
         this.p.callback(this);
       }
+    },
+
+    draw: function(ctx) {
+      ctx.drawImage(Q.asset('timeline_item_background.png'), 14, 8);
+      this._super(ctx);
     }
   });
 
@@ -587,29 +598,39 @@ window.addEventListener('load',function(e) {
         duration: 15,
         width: 747,
         direction: 'left',
+        itemCounter: 0
       });
     },
 
     step: function(dt) {
     },
 
-    addItem: function(itemSprite) {
-      this.stage.insert(new Q.TimelineItemBackground({
-        x: this.p.x + (this.p.direction === 'left' ? this.p.width - 1 : 0),
-        y: this.p.y,
-        direction: this.p.direction,
-        speed: this.p.width / this.p.duration,
-        targetX: this.p.x + (this.p.direction === 'left' ? 0 : this.p.width - 1),
-        callback: function(item) {
-          // TODO
-          /*
-          if (item.foregroundSprite) {
-            item.foregroundSprite.destroy();
+    addItems: function(itemNameArray) {
+      for (var i = 0; i < itemNameArray.length; i++) {
+        var itemName = itemNameArray[i];
+        var speed = this.p.width / this.p.duration;
+
+        this.stage.insert(new Q.TimelineItem(this.stage, {
+          x: this.p.x - 14 - (40*i) + (this.p.direction === 'left' ? this.p.width - 1 : 0),
+          y: this.p.y - 8,
+          z: this.p.itemCounter,
+          sheet: itemName,
+          direction: this.p.direction,
+          speed: speed,
+          targetX: this.p.x - 14 + (this.p.direction === 'left' ? 0 : this.p.width - 1),
+          callback: function(item) {
+            // TODO
+            /*
+            if (item.foregroundSprite) {
+              item.foregroundSprite.destroy();
+            }
+            item.destroy();
+            */
           }
-          item.destroy();
-          */
-        }
-      }));
+        }));
+
+        this.p.itemCounter--;
+      }
     }
   });
 
@@ -732,7 +753,7 @@ window.addEventListener('load',function(e) {
         y: 8,
     });
     stage.insert(peasantTimeline);
-    peasantTimeline.addItem();
+    peasantTimeline.addItems(['poor_peasant', 'armed_peasant']);
 
     stage.on('prerender', function(ctx) {
       ctx.drawImage(Q.asset('gui.png'), 0, 0);
