@@ -20,6 +20,18 @@ window.addEventListener('load',function(e) {
   Q.gravityX = 0;
   Q.gravityY = 0;
 
+  // Reset global game state.
+  Q.state.reset({
+    // Array of reinforcements available to the peasant player.
+    availablePeasants: [],
+    // Array of reinforcements available to the sire player.
+    availableSires: [],
+    // Queue of peasants to be spawned.
+    peasantSpawnQueue: [],
+    // Queue of sires to be spawned.
+    sireSpawnQueue: []
+  });
+
 
   //
   // A component for automatically homing in on entities which satisfy a
@@ -257,7 +269,7 @@ window.addEventListener('load',function(e) {
       // by a random number between 1.0 - variance and 1.0 + variance.
       attackVariance: 0.5,
       // Attack cooldown time, in seconds.
-      cooldown: 1.0,
+      cooldown: 2,
       // Variance factor for the cooldown time.
       cooldownVariance: 0.5,
       // Counter for remaining cooldown.
@@ -464,6 +476,7 @@ window.addEventListener('load',function(e) {
     init: function(props, defaultProps) {
         defaultProps.sprite = 'fighter';
         defaultProps.team = "sires";
+        defaultProps.cooldown = 1;
         defaultProps.predicate = function(t) {
           return t.has('combat') && t.p.health > 0 && t.p.team === "peasants";
         };
@@ -476,7 +489,7 @@ window.addEventListener('load',function(e) {
     init: function(p) {
       this._super(p, {
         sheet: 'knight',
-        health: 10,
+        health: 20,
         attack: 4
       });
     }
@@ -486,7 +499,7 @@ window.addEventListener('load',function(e) {
     init: function(p) {
       this._super(p, {
         sheet: 'lord',
-        health: 15,
+        health: 30,
         attack: 6
       });
     }
@@ -496,7 +509,7 @@ window.addEventListener('load',function(e) {
     init: function(p) {
       this._super(p, {
         sheet: 'king',
-        health: 20,
+        health: 40,
         attack: 8
       });
     }
@@ -517,7 +530,7 @@ window.addEventListener('load',function(e) {
       for (var i = 0; i < this.p.waveSize; i++) {
         var x = this.p.x + (2*Math.random() - 1) * this.p.placementVariance;
         var y = this.p.y + (2*Math.random() - 1) * this.p.placementVariance;
-        this.stage.insert(this.p.spawnFuncs[spawnKey].call(x, y));
+        this.stage.insert(this.p.spawnFuncs[spawnKey](x, y));
       }
     }
   });
@@ -530,13 +543,13 @@ window.addEventListener('load',function(e) {
       this._super(p, {
         cx: 0,
         cy: 0,
-        enabled: true,
+        enabledFunc: function() { return true; },
         asset: p.enabledAsset
       });
     },
 
     step: function(dt) {
-      if (!this.p.enabled) {
+      if (!this.p.enabledFunc()) {
         this.p.asset = this.p.disabledAsset;
       }
       else if (Q.inputs[this.p.key]) {
@@ -553,7 +566,7 @@ window.addEventListener('load',function(e) {
       this._super(p, {
         cx: 0,
         cy: 0,
-        //asset: "timeline_item_background.png", //TODO
+        team: 'peasants',
         sprite: 'fighter',
         direction: 'left',
         speed: 30,
@@ -575,11 +588,18 @@ window.addEventListener('load',function(e) {
       var dx = i * this.p.speed * dt;
       this.p.x += dx;
 
-      if (this.p.x <= this.p.targetX) {
+      var targetReached = this.p.direction === 'left' ? this.p.x <= this.p.targetX : this.p.x >= this.p.targetX;
+      if (targetReached) {
         this.p.targetReached = true;
         this.p.x = this.p.targetX;
         this.play(this.p.direction === 'left' ? 'idle_front' : 'idle_left');
-        this.p.callback(this);
+
+        if (this.p.team === 'peasants') {
+          Q.state.get('availablePeasants').push(this);
+        }
+        else if (this.p.team === 'sires') {
+          Q.state.get('availableSires').push(this);
+        }
       }
     },
 
@@ -595,8 +615,8 @@ window.addEventListener('load',function(e) {
       this._super(p, {
         cx: 0,
         cy: 0,
-        duration: 15,
-        width: 747,
+        duration: 30,
+        width: 751,
         direction: 'left',
         itemCounter: 0
       });
@@ -605,31 +625,136 @@ window.addEventListener('load',function(e) {
     step: function(dt) {
     },
 
-    addItems: function(itemNameArray) {
+    addItems: function(itemNameArray, positionFactor) {
       for (var i = 0; i < itemNameArray.length; i++) {
         var itemName = itemNameArray[i];
         var speed = this.p.width / this.p.duration;
 
+        if (!positionFactor) {
+          positionFactor = 1.0;
+        }
+
         this.stage.insert(new Q.TimelineItem(this.stage, {
-          x: this.p.x - 14 - (40*i) + (this.p.direction === 'left' ? this.p.width - 1 : 0),
+          x: this.p.x - 14 + (this.p.direction === 'left' ? positionFactor*(this.p.width - 1) - 40*i : (1-positionFactor)*(this.p.width - 1) + 40*i),
           y: this.p.y - 8,
           z: this.p.itemCounter,
+          team: this.p.team,
           sheet: itemName,
           direction: this.p.direction,
           speed: speed,
-          targetX: this.p.x - 14 + (this.p.direction === 'left' ? 0 : this.p.width - 1),
-          callback: function(item) {
-            // TODO
-            /*
-            if (item.foregroundSprite) {
-              item.foregroundSprite.destroy();
-            }
-            item.destroy();
-            */
-          }
+          targetX: this.p.x - 14 + (this.p.direction === 'left' ? 0 : this.p.width - 1)
         }));
 
         this.p.itemCounter--;
+      }
+    }
+  });
+
+  Q.Sprite.extend("TimelineManager", {
+    _randomPeasant: function() {
+      var i = Math.floor(Math.random() * 3);
+      if (i == 0) {
+        return 'poor_peasant';
+      } else if (i == 1) {
+        return 'pitchfork_peasant';
+      } else {
+        return 'armed_peasant';
+      }
+    },
+
+    _randomSire: function() {
+      var i = Math.floor(Math.random() * 3);
+      if (i == 0) {
+        return 'knight';
+      } else if (i == 1) {
+        return 'lord';
+      } else {
+        return 'king';
+      }
+    },
+
+    init: function(p) {
+      this._super(p, {
+        addPeasantItems: function(items) { },
+        addSireItems: function(items) { },
+        spawnPeasants: function(type) { },
+        spawnSire: function(type) { },
+        freeReinforcementFreq: 30,
+        freeReinforcementCounter: 0
+      });
+
+      Q.input.on('peasantHelp', this, 'peasantHelp');
+      Q.input.on('peasantFight', this, 'peasantFight');
+      Q.input.on('sireHelp', this, 'sireHelp');
+      Q.input.on('sireFight', this, 'sireFight');
+    },
+
+    step: function(dt) {
+      this.p.freeReinforcementCounter += dt;
+
+      if (this.p.freeReinforcementCounter >= this.p.freeReinforcementFreq) {
+        this.p.freeReinforcementCounter -= this.p.freeReinforcementFreq;
+
+        this.p.addPeasantItems([this._randomPeasant()]);
+        this.p.addSireItems([this._randomSire()]);
+      }
+    },
+
+    peasantHelp: function() {
+      var availablePeasants = Q.state.get('availablePeasants');
+
+      if (availablePeasants.length > 0) {
+        availablePeasants.shift().destroy();
+        this.p.addPeasantItems([this._randomPeasant(), this._randomPeasant()]);
+      }
+    },
+
+    peasantFight: function() {
+      var availablePeasants = Q.state.get('availablePeasants');
+
+      if (availablePeasants.length > 0) {
+        var item = availablePeasants.shift();
+        this.p.spawnPeasants(item.p.sheet);
+        item.destroy();
+      }
+    },
+
+    sireHelp: function() {
+      var availableSires = Q.state.get('availableSires');
+
+      if (availableSires.length > 0) {
+        availableSires.shift().destroy();
+        this.p.addSireItems([this._randomSire(), this._randomSire()]);
+      }
+    },
+
+    sireFight: function() {
+      var availableSires = Q.state.get('availableSires');
+
+      if (availableSires.length > 0) {
+        var item = availableSires.shift();
+        this.p.spawnSire(item.p.sheet);
+        item.destroy();
+      }
+    }
+  });
+
+  Q.Sprite.extend("SpawnerManager", {
+    init: function(p) {
+      this._super(p, {
+        spawnPeasantsFunc: function(type) { },
+        spawnSireFunc: function(type) { }
+      });
+    },
+
+    step: function(dt) {
+      var peasantSpawnQueue = Q.state.get('peasantSpawnQueue');
+      for (var i = 0; i < peasantSpawnQueue.length; i++) {
+        this.p.spawnPeasantsFunc(peasantSpawnQueue.shift());
+      }
+      var sireSpawnQueue = Q.state.get('sireSpawnQueue');
+      for (var i = 0; i < sireSpawnQueue.length; i++) {
+        this.p.spawnSireFunc(sireSpawnQueue.shift());
       }
     }
   });
@@ -671,26 +796,27 @@ window.addEventListener('load',function(e) {
 
   // The scene where the main action happens.
   Q.scene("gameplay", function(stage) {
-    stage.insert(new Q.Spawner({
+    var peasantSpawner = new Q.Spawner({
         x: 60,
         y: 550,
-        waveSize: 7,
+        waveSize: 10,
         spawnFuncs: {
-          poor_peasants: function(x, y) {
+          poor_peasant: function(x, y) {
             return new Q.PoorPeasant({ x: x, y: y});
           },
-          pitchfork_peasants: function(x, y) {
+          pitchfork_peasant: function(x, y) {
             return new Q.PitchforkPeasant({ x: x, y: y});
           },
-          armed_peasants: function(x, y) {
+          armed_peasant: function(x, y) {
             return new Q.ArmedPeasant({ x: x, y: y});
           }
         }
-    }));
-    stage.insert(new Q.Spawner({
-        x: 60,
-        y: 550,
-        waveSize: 7,
+    });
+    stage.insert(peasantSpawner);
+    var sireSpawner = new Q.Spawner({
+        x: 987,
+        y: 50,
+        waveSize: 1,
         spawnFuncs: {
           knight: function(x, y) {
             return new Q.Knight({ x: x, y: y});
@@ -702,7 +828,21 @@ window.addEventListener('load',function(e) {
             return new Q.King({ x: x, y: y});
           }
         }
-    }));
+    });
+    stage.insert(sireSpawner);
+
+    var spawnerManager = new Q.SpawnerManager({
+      spawnPeasantsFunc: function(type) {
+        peasantSpawner.spawnWave(type);
+      },
+      spawnSireFunc: function(type) {
+        sireSpawner.spawnWave(type);
+      }
+    });
+    stage.insert(spawnerManager);
+
+    peasantSpawner.spawnWave('pitchfork_peasant');
+    sireSpawner.spawnWave('lord');
 
     stage.on('prerender', function(ctx) {
       ctx.drawImage(Q.asset('background.png'), 0, 0);
@@ -718,6 +858,9 @@ window.addEventListener('load',function(e) {
         disabledAsset: 'peasant_help_button_disabled.png',
         enabledAsset: 'peasant_help_button_enabled.png',
         pressedAsset: 'peasant_help_button_pressed.png',
+        enabledFunc: function() {
+          return Q.state.get('availablePeasants').length > 0;
+        }
     });
     var peasantFightButton = new Q.ButtonIndicator({
         x: 76,
@@ -726,6 +869,9 @@ window.addEventListener('load',function(e) {
         disabledAsset: 'peasant_fight_button_disabled.png',
         enabledAsset: 'peasant_fight_button_enabled.png',
         pressedAsset: 'peasant_fight_button_pressed.png',
+        enabledFunc: function() {
+          return Q.state.get('availablePeasants').length > 0;
+        }
     });
     var sireHelpButton = new Q.ButtonIndicator({
         x: 927,
@@ -734,6 +880,9 @@ window.addEventListener('load',function(e) {
         disabledAsset: 'sire_help_button_disabled.png',
         enabledAsset: 'sire_help_button_enabled.png',
         pressedAsset: 'sire_help_button_pressed.png',
+        enabledFunc: function() {
+          return Q.state.get('availableSires').length > 0;
+        }
     });
     var sireFightButton = new Q.ButtonIndicator({
         x: 997,
@@ -742,6 +891,9 @@ window.addEventListener('load',function(e) {
         disabledAsset: 'sire_fight_button_disabled.png',
         enabledAsset: 'sire_fight_button_enabled.png',
         pressedAsset: 'sire_fight_button_pressed.png',
+        enabledFunc: function() {
+          return Q.state.get('availableSires').length > 0;
+        }
     });
     stage.insert(peasantHelpButton);
     stage.insert(peasantFightButton);
@@ -751,9 +903,36 @@ window.addEventListener('load',function(e) {
     var peasantTimeline = new Q.Timeline({
         x: 8,
         y: 8,
+        direction: 'left',
+        team: 'peasants'
     });
     stage.insert(peasantTimeline);
-    peasantTimeline.addItems(['poor_peasant', 'armed_peasant']);
+    var sireTimeline = new Q.Timeline({
+        x: 273,
+        y: 544,
+        direction: 'right',
+        team: 'sires'
+    });
+    stage.insert(sireTimeline);
+
+    var timelineManager = new Q.TimelineManager({
+      addPeasantItems: function(items) {
+        peasantTimeline.addItems(items);
+      },
+      addSireItems: function(items) {
+        sireTimeline.addItems(items)
+      },
+      spawnPeasants: function(type) {
+        Q.state.get('peasantSpawnQueue').push(type);
+      },
+      spawnSire: function(type) {
+        Q.state.get('sireSpawnQueue').push(type);
+      },
+    });
+    stage.insert(timelineManager);
+
+    peasantTimeline.addItems(['poor_peasant', 'armed_peasant'], 0.5);
+    sireTimeline.addItems(['knight', 'king'], 0.5);
 
     stage.on('prerender', function(ctx) {
       ctx.drawImage(Q.asset('gui.png'), 0, 0);
