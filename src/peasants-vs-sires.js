@@ -17,6 +17,9 @@ window.addEventListener('load',function(e) {
     80: "sireFight"      // P
   });
 
+  // Quintus enables platformer-style gravity by default on anything with the
+  // '2d' component. If you ask me, the default should be no gravity, but we
+  // have to set that ourselves.
   Q.gravityX = 0;
   Q.gravityY = 0;
 
@@ -26,9 +29,9 @@ window.addEventListener('load',function(e) {
     availablePeasants: [],
     // Array of reinforcements available to the sire player.
     availableSires: [],
-    // Queue of peasants to be spawned.
+    // Queue of peasant types that need to be spawned.
     peasantSpawnQueue: [],
-    // Queue of sires to be spawned.
+    // Queue of sire types that need to be spawned.
     sireSpawnQueue: []
   });
 
@@ -244,6 +247,8 @@ window.addEventListener('load',function(e) {
       p.commitment -= dt;
     },
 
+    // Override destroy() so that we reduce followerCount on the target if a
+    // target was set.
     destroy: function() {
       var p = this.entity.p;
       if (p.target !== null && p.target.followerCount) {
@@ -315,10 +320,10 @@ window.addEventListener('load',function(e) {
       // Start an attack if we can.
       if (p.attackTargetDistance <= p.range && p.cooldownCounter <= 0) {
         this.entity.play("striking_" + p.facing);
-        this.entity.trigger('attackStart');
       }
     },
 
+    // Handler called when we have successfully attacked the target.
     attacked: function(dt) {
       var p = this.entity.p;
 
@@ -393,7 +398,7 @@ window.addEventListener('load',function(e) {
     init: function(props, defaultProps) {
       defaultProps.cx = 32;
       defaultProps.cy = 46;
-      defaultProps.points = [[15,46],[31,36],[48,46],[32,50]];
+      defaultProps.points = [[15,46],[31,36],[48,46],[32,50]]; // TODO: revisit this hitbox
 
       this._super(props, defaultProps);
       this.add("2d, animation, homing, combat");
@@ -407,19 +412,18 @@ window.addEventListener('load',function(e) {
         this.play("idle_" + this.p.facing);
       });
 
-      this.on('attackStart', function(target, cost) {
-      });
-
-      this.on('attackEnd', function(target, cost) {
-      });
-
       this.on('destroy', function() {
         this.destroy();
       });
     },
 
     step: function(dt) {
-      this.p.z = this.p.y + (this.p.health > 0 ? 1000 : 0);
+      // Set the z coordinate to the y coordinate so that sprites which are
+      // further "in front" in the isometric perspective get drawn on top of
+      // those further "behind" them.
+      // We do the same thing with dead sprites, but we ensure that ALL dead
+      // sprites get drawn under ALL live sprites.
+      this.p.z = this.p.y + (this.p.health > 0 ? 1000000 : 0);
 
       // If we're dead, just stahp now. Staaahp.
       if (this.p.health <= 0) {
@@ -427,6 +431,7 @@ window.addEventListener('load',function(e) {
       }
     }
   });
+  // TODO: add comments and improve code below here
 
   // Abstract Peasant class
   Q.Fighter.extend("PeasantBase", {
