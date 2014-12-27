@@ -393,7 +393,8 @@ window.addEventListener('load',function(e) {
   // Sprites and other Game Objects
   //
 
-  // Abstract Fighter class
+  // Abstract Fighter base class. Expects the 'sprite' and 'sheet' properties to be set by
+  // the subclass, along with the 'homing' and 'combat' properties.
   Q.Sprite.extend("Fighter",{
     init: function(props, defaultProps) {
       defaultProps.cx = 32;
@@ -431,9 +432,9 @@ window.addEventListener('load',function(e) {
       }
     }
   });
-  // TODO: add comments and improve code below here
 
-  // Abstract Peasant class
+  // Abstract Peasant base class. Expects the 'sheet', 'health' and 'attack'
+  // properties to be set by the subclass.
   Q.Fighter.extend("PeasantBase", {
     init: function(props, defaultProps) {
         defaultProps.sprite = 'fighter';
@@ -476,7 +477,8 @@ window.addEventListener('load',function(e) {
     }
   });
 
-  // Abstract Sire class
+  // Abstract Sire base class. Expects the 'sheet', 'health' and 'attack'
+  // properties to be set by the subclass.
   Q.Fighter.extend("SireBase",{
     init: function(props, defaultProps) {
         defaultProps.sprite = 'fighter';
@@ -520,17 +522,21 @@ window.addEventListener('load',function(e) {
     }
   });
 
-  // Invisible object that spawns other entities.
+  // Invisible object that spawns other entities. Expects the 'spawnFuncs'
+  // property to be set to a hash of functions that each return a new entity to
+  // be spawned.
   Q.Sprite.extend("Spawner", {
     init: function(p) {
       this._super(p, {
         // The number of entities in each wave.
         waveSize: 1,
         // The variance, in pixels, to apply randomly to each spawned entity.
-        placementVariance: 50,
+        placementVariance: 50
       });
     },
 
+    // Spawns a new wave, using the function indicated by 'spawnKey' to
+    // generate each entity.
     spawnWave: function(spawnKey) {
       for (var i = 0; i < this.p.waveSize; i++) {
         var x = this.p.x + (2*Math.random() - 1) * this.p.placementVariance;
@@ -548,8 +554,9 @@ window.addEventListener('load',function(e) {
       this._super(p, {
         cx: 0,
         cy: 0,
-        enabledFunc: function() { return true; },
-        asset: p.enabledAsset
+        asset: p.enabledAsset,
+        // Function that returns whether or not the button is enabled.
+        enabledFunc: function() { return true; }
       });
     },
 
@@ -566,6 +573,8 @@ window.addEventListener('load',function(e) {
     }
   });
 
+  // An item on a reinforcements timeline, which moves gradually towards the
+  // target end of the timeline.
   Q.Sprite.extend("TimelineItem", {
     init: function(stage, p) {
       this._super(p, {
@@ -573,11 +582,14 @@ window.addEventListener('load',function(e) {
         cy: 0,
         team: 'peasants',
         sprite: 'fighter',
+        // The direction in which this item moves (left or right).
         direction: 'left',
+        // The speed at which this item moves.
         speed: 30,
+        // The target X-coordinate of the item.
         targetX: 0,
+        // Whether or not the target has been reached.
         targetReached: false,
-        callback: function() { }
       });
 
       this.add("animation");
@@ -589,16 +601,19 @@ window.addEventListener('load',function(e) {
         return;
       }
 
-      var i = this.p.direction === 'left' ? -1 : 1;
-      var dx = i * this.p.speed * dt;
+      var dx = this.p.speed * dt * (this.p.direction === 'left' ? -1 : 1);
       this.p.x += dx;
 
-      var targetReached = this.p.direction === 'left' ? this.p.x <= this.p.targetX : this.p.x >= this.p.targetX;
+      var targetReached = this.p.direction === 'left'
+        ? this.p.x <= this.p.targetX
+        : this.p.x >= this.p.targetX;
+
       if (targetReached) {
         this.p.targetReached = true;
         this.p.x = this.p.targetX;
         this.play(this.p.direction === 'left' ? 'idle_front' : 'idle_left');
 
+        // Add to the appropriate global list of reinforcements
         if (this.p.team === 'peasants') {
           Q.state.get('availablePeasants').push(this);
         }
@@ -608,6 +623,7 @@ window.addEventListener('load',function(e) {
       }
     },
 
+    // Override 'draw' so we can draw a custom background behind the sprite.
     draw: function(ctx) {
       ctx.drawImage(Q.asset('timeline_item_background.png'), 14, 8);
       this._super(ctx);
@@ -620,16 +636,27 @@ window.addEventListener('load',function(e) {
       this._super(p, {
         cx: 0,
         cy: 0,
+        // The amount of time it takes for items to traverse the timeline.
         duration: 30,
+        // The width of the timeline.
         width: 751,
+        // The direction in which items travel on the timeline.
         direction: 'left',
+        // A counter that decrements each time an item is added to the
+        // timeline. This is used to set an ever-decreasing Z-coordinate to
+        // each newly-spawned item, so that they stack correctly at the end of
+        // the timeline.
         itemCounter: 0
       });
     },
 
-    step: function(dt) {
-    },
-
+    // Add an array of new items to the timeline. Each one will be spaced out
+    // so they're visible; if you want to stack multiple items at the end of
+    // the timeline, 'addItems' should be called for each item individually.
+    // 'positionFactor' is an option parameter which should be a number between
+    // 0 and 1, a scaling factor for how far on the timeline to place the new
+    // items. For example, a 'positionFactor' of 0.5 means that items will be
+    // placed at the halfway point of the timeline.
     addItems: function(itemNameArray, positionFactor) {
       for (var i = 0; i < itemNameArray.length; i++) {
         var itemName = itemNameArray[i];
@@ -640,7 +667,10 @@ window.addEventListener('load',function(e) {
         }
 
         this.stage.insert(new Q.TimelineItem(this.stage, {
-          x: this.p.x - 14 + (this.p.direction === 'left' ? positionFactor*(this.p.width - 1) - 40*i : (1-positionFactor)*(this.p.width - 1) + 40*i),
+          x: this.p.x - 14
+            + (this.p.direction === 'left'
+              ? positionFactor*(this.p.width - 1) - 40*i
+              : (1-positionFactor)*(this.p.width - 1) + 40*i),
           y: this.p.y - 8,
           z: this.p.itemCounter,
           team: this.p.team,
@@ -655,7 +685,10 @@ window.addEventListener('load',function(e) {
     }
   });
 
+  // Manages adding items to the peasant and sire timelines.
+  // It subclasses 'Sprite' because only Sprite defines the 'step' function.
   Q.Sprite.extend("TimelineManager", {
+    // Returns a random peasant type.
     _randomPeasant: function() {
       var i = Math.floor(Math.random() * 3);
       if (i == 0) {
@@ -667,6 +700,7 @@ window.addEventListener('load',function(e) {
       }
     },
 
+    // Returns a random sire type.
     _randomSire: function() {
       var i = Math.floor(Math.random() * 3);
       if (i == 0) {
@@ -680,10 +714,15 @@ window.addEventListener('load',function(e) {
 
     init: function(p) {
       this._super(p, {
+        // A function that adds peasant items to a timeline.
         addPeasantItems: function(items) { },
+        // A function that adds sire items to a timeline.
         addSireItems: function(items) { },
+        // A function that spawns peasants on a battlefield.
         spawnPeasants: function(type) { },
+        // A function that spawns a sire on a battlefield.
         spawnSire: function(type) { },
+        // Frequency in seconds at which free reinforcements should be spawned.
         freeReinforcementFreq: 30,
         freeReinforcementCounter: 0
       });
@@ -697,6 +736,7 @@ window.addEventListener('load',function(e) {
     step: function(dt) {
       this.p.freeReinforcementCounter += dt;
 
+      // Add free reinforcements if it's time to do so.
       if (this.p.freeReinforcementCounter >= this.p.freeReinforcementFreq) {
         this.p.freeReinforcementCounter -= this.p.freeReinforcementFreq;
 
@@ -705,6 +745,9 @@ window.addEventListener('load',function(e) {
       }
     },
 
+    // Handler for when the 'peasantHelp' button is pressed.
+    // Checks the global list of available peasants and sends one for help if
+    // there is one.
     peasantHelp: function() {
       var availablePeasants = Q.state.get('availablePeasants');
 
@@ -714,6 +757,9 @@ window.addEventListener('load',function(e) {
       }
     },
 
+    // Handler for when the 'peasantFight' button is pressed.
+    // Checks the global list of available peasants and sends one to fight if
+    // there is one.
     peasantFight: function() {
       var availablePeasants = Q.state.get('availablePeasants');
 
@@ -724,6 +770,9 @@ window.addEventListener('load',function(e) {
       }
     },
 
+    // Handler for when the 'sireHelp' button is pressed.
+    // Checks the global list of available sires and sends one for help if
+    // there is one.
     sireHelp: function() {
       var availableSires = Q.state.get('availableSires');
 
@@ -733,6 +782,9 @@ window.addEventListener('load',function(e) {
       }
     },
 
+    // Handler for when the 'sireFight' button is pressed.
+    // Checks the global list of available sires and sends one to fight if
+    // there is one.
     sireFight: function() {
       var availableSires = Q.state.get('availableSires');
 
@@ -744,15 +796,21 @@ window.addEventListener('load',function(e) {
     }
   });
 
+  // Manages spawning fighters on the battlefield.
+  // It subclasses 'Sprite' because only Sprite defines the 'step' function.
   Q.Sprite.extend("SpawnerManager", {
     init: function(p) {
       this._super(p, {
+        // Function that spawns a group of peasants on the battlefield.
         spawnPeasantsFunc: function(type) { },
+        // Function that spawns a sire on the battlefield.
         spawnSireFunc: function(type) { }
       });
     },
 
     step: function(dt) {
+      // Check the global peasant and sire queues and spawn fighters on the
+      // battlefield if required.
       var peasantSpawnQueue = Q.state.get('peasantSpawnQueue');
       for (var i = 0; i < peasantSpawnQueue.length; i++) {
         this.p.spawnPeasantsFunc(peasantSpawnQueue.shift());
@@ -769,6 +827,7 @@ window.addEventListener('load',function(e) {
   // Scenes
   //
 
+  // TODO: Make a proper main menu
   Q.scene("mainMenu", function(stage) {
     var container = stage.insert(new Q.UI.Container({
       fill: "gray",
@@ -791,8 +850,8 @@ window.addEventListener('load',function(e) {
           shadowColor: "rgba(0,0,0,0.5)"
         },
         function() {
-          Q.stageScene("gameplay", 0, { sort: true });
-          Q.stageScene("gui", 1, { sort: true });
+          Q.stageScene("battlefield", 0, { sort: true });
+          Q.stageScene("battlefieldGUI", 1, { sort: true });
         }),
       container);
 
@@ -800,10 +859,11 @@ window.addEventListener('load',function(e) {
   });
 
   // The scene where the main action happens.
-  Q.scene("gameplay", function(stage) {
+  Q.scene("battlefield", function(stage) {
+    // Create peasant and sire spawners and add them to the stage.
     var peasantSpawner = new Q.Spawner({
-        x: 60,
-        y: 550,
+        x: 140,
+        y: 530,
         waveSize: 10,
         spawnFuncs: {
           poor_peasant: function(x, y) {
@@ -819,8 +879,8 @@ window.addEventListener('load',function(e) {
     });
     stage.insert(peasantSpawner);
     var sireSpawner = new Q.Spawner({
-        x: 987,
-        y: 50,
+        x: 927,
+        y: 70,
         waveSize: 1,
         spawnFuncs: {
           knight: function(x, y) {
@@ -836,6 +896,7 @@ window.addEventListener('load',function(e) {
     });
     stage.insert(sireSpawner);
 
+    // Create a manager for the spawners and add it to the battlefield.
     var spawnerManager = new Q.SpawnerManager({
       spawnPeasantsFunc: function(type) {
         peasantSpawner.spawnWave(type);
@@ -846,16 +907,19 @@ window.addEventListener('load',function(e) {
     });
     stage.insert(spawnerManager);
 
+    // Spawn an initial wave of middle-level fighters to start things off.
     peasantSpawner.spawnWave('pitchfork_peasant');
     sireSpawner.spawnWave('lord');
 
+    // Draw the background before each render.
     stage.on('prerender', function(ctx) {
       ctx.drawImage(Q.asset('background.png'), 0, 0);
     });
   });
 
-  // The scene with the UI content for the gameplay scene.
-  Q.scene("gui", function(stage) {
+  // The scene with the UI content for the battlefield scene.
+  Q.scene("battlefieldGUI", function(stage) {
+    // Create indicators for each of the buttons and add them to the stage.
     var peasantHelpButton = new Q.ButtonIndicator({
         x: 6,
         y: 64,
@@ -905,6 +969,7 @@ window.addEventListener('load',function(e) {
     stage.insert(sireHelpButton);
     stage.insert(sireFightButton);
 
+    // Create the reinforcement timelines and add them to the stage.
     var peasantTimeline = new Q.Timeline({
         x: 8,
         y: 8,
@@ -920,6 +985,7 @@ window.addEventListener('load',function(e) {
     });
     stage.insert(sireTimeline);
 
+    // Create the reinforcement timeline manager and add it to the stage.
     var timelineManager = new Q.TimelineManager({
       addPeasantItems: function(items) {
         peasantTimeline.addItems(items);
@@ -936,9 +1002,13 @@ window.addEventListener('load',function(e) {
     });
     stage.insert(timelineManager);
 
-    peasantTimeline.addItems(['poor_peasant', 'armed_peasant'], 0.5);
-    sireTimeline.addItems(['knight', 'king'], 0.5);
+    // Add some items to the timelines to start things off.
+    peasantTimeline.addItems(['poor_peasant'], 0.5);
+    peasantTimeline.addItems(['armed_peasant']);
+    sireTimeline.addItems(['knight'], 0.5);
+    sireTimeline.addItems(['king']);
 
+    // Draw the GUI before each render.
     stage.on('prerender', function(ctx) {
       ctx.drawImage(Q.asset('gui.png'), 0, 0);
     });
