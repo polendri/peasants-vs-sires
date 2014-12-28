@@ -32,7 +32,15 @@ window.addEventListener('load',function(e) {
     // Queue of peasant types that need to be spawned.
     peasantSpawnQueue: [],
     // Queue of sire types that need to be spawned.
-    sireSpawnQueue: []
+    sireSpawnQueue: [],
+    // Count of the number of peasants who have died.
+    peasantLosses: 0,
+    // Count of the number of knights who have died.
+    knightLosses: 0,
+    // Count of the number of lords who have died.
+    lordLosses: 0,
+    // Count of the number of kings who have died.
+    kingLosses: 0
   });
 
 
@@ -148,9 +156,9 @@ window.addEventListener('load',function(e) {
       // The entity's facing (front, left, back or right).
       facing: 'front',
       // The distance from a target at which homing will cease.
-      stopDistance: 30,
+      stopDistance: 25,
       // The distance from a target at which homing should resume again.
-      restartDistance: 35,
+      restartDistance: 30,
       // A count is kept for each entity of how many other entities are
       // targeting it. This sets an upper bound on the number of followers,
       // as a way of spreading out targets.
@@ -267,7 +275,7 @@ window.addEventListener('load',function(e) {
       // The entity's health.
       health: 10,
       // The entity's attack range.
-      range: 35,
+      range: 30,
       // The entity's attack damage.
       attack: 4,
       // The variance of the attack damage. Actual damage will be multiplied
@@ -341,6 +349,20 @@ window.addEventListener('load',function(e) {
         this.p.health -= dmg;
 
         if (this.p.health <= 0) {
+          // Increment the appropriate global death counter.
+          if (this.p.team === 'peasants') {
+            Q.state.inc('peasantLosses', 1);
+          }
+          else if (this.p.team === 'sires' && this.p.sheet === 'knight') {
+            Q.state.inc('knightLosses', 1);
+          }
+          else if (this.p.team === 'sires' && this.p.sheet === 'lord') {
+            Q.state.inc('lordLosses', 1);
+          }
+          else if (this.p.team === 'sires' && this.p.sheet === 'king') {
+            Q.state.inc('kingLosses', 1);
+          }
+
           this.trigger('dead');
           this.play("dying_" + this.p.facing);
           this.del('combat');
@@ -827,7 +849,6 @@ window.addEventListener('load',function(e) {
   Q.Sprite.extend("WinConditionDetector", {
     // Stages the endgame popup scene for the appropriate winner.
     _endGame: function(winner) {
-      Q.stage(0).pause();
       Q.stage(1).pause();
       Q.stageScene('endGame', 2, {
         winner: winner
@@ -843,10 +864,10 @@ window.addEventListener('load',function(e) {
       });
 
       if (!peasantAlive) {
-        this._endGame('peasants');
+        this._endGame('sires');
       }
       else if (!sireAlive) {
-        this._endGame('sires');
+        this._endGame('peasants');
       }
     }
   });
@@ -1035,10 +1056,10 @@ window.addEventListener('load',function(e) {
     stage.insert(timelineManager);
 
     // Add some items to the timelines to start things off.
-    peasantTimeline.addItems(['poor_peasant'], 0.5);
-    peasantTimeline.addItems(['armed_peasant']);
-    sireTimeline.addItems(['knight'], 0.5);
-    sireTimeline.addItems(['king']);
+    peasantTimeline.addItems(['pitchfork_peasant'], 0.1);
+    peasantTimeline.addItems(['pitchfork_peasant'], 0.7);
+    sireTimeline.addItems(['lord'], 0.1);
+    sireTimeline.addItems(['lord'], 0.7);
 
     // Draw the GUI before each render.
     stage.on('prerender', function(ctx) {
@@ -1050,25 +1071,41 @@ window.addEventListener('load',function(e) {
   Q.scene("endGame", function(stage) {
     var container = stage.insert(new Q.UI.Container({
       fill: "gray",
-      border: 5,
-      shadow: 10,
-      shadowColor: "rgba(0,0,0,0.5)",
+      border: 2,
       x: Q.width / 2,
-      y: Q.height / 2
+      y: 400
     }));
+
+    if (stage.options.winner === 'peasants') {
+      var cost = Q.state.get('peasantLosses') + " lives";
+    }
+    else if (stage.options.winner === 'sires') {
+      var cost = (10*Q.state.get('knightLosses')
+        + 100*Q.state.get('lordLosses')
+        + 1000*Q.state.get('kingLosses'))
+        + " gold coins";
+    }
+
+    stage.insert(new Q.UI.Text({ 
+      label: "The " + stage.options.winner + " are victorious!\n\nCost of victory: " + cost + ".",
+      color: "black",
+      size: 16,
+      x: 0,
+      y: 0
+    }), container);
 
     stage.insert(
       new Q.UI.Button(
         {
-          label: "Play",
+          label: "Restart",
+          size: 16,
           x: 0,
-          y: 0,
+          y: 60,
           fill: "#990000",
-          border: 5,
-          shadow: 10,
-          shadowColor: "rgba(0,0,0,0.5)"
+          border: 2,
         },
         function() {
+          Q.clearStages();
           Q.stageScene("battlefield", 0, { sort: true });
           Q.stageScene("battlefieldGUI", 1, { sort: true });
         }),
