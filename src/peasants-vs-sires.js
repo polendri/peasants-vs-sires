@@ -152,7 +152,7 @@ window.addEventListener('load',function(e) {
       // homing.
       predicate: function() { return true; },
       // The homing movement speed.
-      speed: 30,
+      speed: 25,
       // The entity's facing (front, left, back or right).
       facing: 'front',
       // The distance from a target at which homing will cease.
@@ -607,7 +607,7 @@ window.addEventListener('load',function(e) {
         // The direction in which this item moves (left or right).
         direction: 'left',
         // The speed at which this item moves.
-        speed: 30,
+        speed: 25,
         // The target X-coordinate of the item.
         targetX: 0,
         // Whether or not the target has been reached.
