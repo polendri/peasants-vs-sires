@@ -280,11 +280,11 @@ window.addEventListener('load',function(e) {
       attack: 4,
       // The variance of the attack damage. Actual damage will be multiplied
       // by a random number between 1.0 - variance and 1.0 + variance.
-      attackVariance: 0.5,
+      attackVariance: 0.25,
       // Attack cooldown time, in seconds.
       cooldown: 2,
       // Variance factor for the cooldown time.
-      cooldownVariance: 0.5,
+      cooldownVariance: 0.25,
       // Counter for remaining cooldown.
       cooldownCounter: 0,
       // The target of attacks.
@@ -421,7 +421,7 @@ window.addEventListener('load',function(e) {
     init: function(props, defaultProps) {
       defaultProps.cx = 32;
       defaultProps.cy = 46;
-      defaultProps.points = [[15,46],[31,36],[48,46],[32,50]]; // TODO: revisit this hitbox
+      defaultProps.points = [[19,45],[32,39],[44,46],[31,51]];
 
       this._super(props, defaultProps);
       this.add("2d, animation, homing, combat");
@@ -483,7 +483,7 @@ window.addEventListener('load',function(e) {
     init: function(p) {
       this._super(p, {
         sheet: 'pitchfork_peasant',
-        health: 4,
+        health: 3,
         attack: 1.5
       });
     }
@@ -493,7 +493,7 @@ window.addEventListener('load',function(e) {
     init: function(p) {
       this._super(p, {
         sheet: 'armed_peasant',
-        health: 6,
+        health: 4,
         attack: 2
       });
     }
@@ -518,8 +518,8 @@ window.addEventListener('load',function(e) {
     init: function(p) {
       this._super(p, {
         sheet: 'knight',
-        health: 20,
-        attack: 4
+        health: 40,
+        attack: 2
       });
     }
   });
@@ -528,8 +528,8 @@ window.addEventListener('load',function(e) {
     init: function(p) {
       this._super(p, {
         sheet: 'lord',
-        health: 30,
-        attack: 6
+        health: 60,
+        attack: 3
       });
     }
   });
@@ -538,8 +538,8 @@ window.addEventListener('load',function(e) {
     init: function(p) {
       this._super(p, {
         sheet: 'king',
-        health: 40,
-        attack: 8
+        health: 80,
+        attack: 4
       });
     }
   });
@@ -745,7 +745,7 @@ window.addEventListener('load',function(e) {
         // A function that spawns a sire on a battlefield.
         spawnSire: function(type) { },
         // Frequency in seconds at which free reinforcements should be spawned.
-        freeReinforcementFreq: 30,
+        freeReinforcementFreq: 20,
         freeReinforcementCounter: 0
       });
 
@@ -912,8 +912,8 @@ window.addEventListener('load',function(e) {
   Q.scene("battlefield", function(stage) {
     // Create peasant and sire spawners and add them to the stage.
     var peasantSpawner = new Q.Spawner({
-        x: 140,
-        y: 530,
+        x: 100,
+        y: 500,
         waveSize: 10,
         spawnFuncs: {
           poor_peasant: function(x, y) {
@@ -929,8 +929,8 @@ window.addEventListener('load',function(e) {
     });
     stage.insert(peasantSpawner);
     var sireSpawner = new Q.Spawner({
-        x: 927,
-        y: 70,
+        x: 967,
+        y: 100,
         waveSize: 1,
         spawnFuncs: {
           knight: function(x, y) {
@@ -1056,10 +1056,10 @@ window.addEventListener('load',function(e) {
     stage.insert(timelineManager);
 
     // Add some items to the timelines to start things off.
-    peasantTimeline.addItems(['pitchfork_peasant'], 0.1);
-    peasantTimeline.addItems(['pitchfork_peasant'], 0.7);
-    sireTimeline.addItems(['lord'], 0.1);
-    sireTimeline.addItems(['lord'], 0.7);
+    peasantTimeline.addItems(['pitchfork_peasant'], 0.3);
+    peasantTimeline.addItems(['pitchfork_peasant'], 0.6);
+    sireTimeline.addItems(['lord'], 0.3);
+    sireTimeline.addItems(['lord'], 0.6);
 
     // Draw the GUI before each render.
     stage.on('prerender', function(ctx) {
@@ -1087,7 +1087,7 @@ window.addEventListener('load',function(e) {
     }
 
     stage.insert(new Q.UI.Text({ 
-      label: "The " + stage.options.winner + " are victorious!\n\nCost of victory: " + cost + ".",
+      label: "The " + stage.options.winner + " are victorious!\n\nCost of victory: " + cost,
       color: "black",
       size: 16,
       x: 0,
