@@ -822,6 +822,35 @@ window.addEventListener('load',function(e) {
     }
   });
 
+  // Detects win conditions and stages the endgame scene.
+  // It subclasses 'Sprite' because only Sprite defines the 'step' function.
+  Q.Sprite.extend("WinConditionDetector", {
+    // Stages the endgame popup scene for the appropriate winner.
+    _endGame: function(winner) {
+      Q.stage(0).pause();
+      Q.stage(1).pause();
+      Q.stageScene('endGame', 2, {
+        winner: winner
+      });
+    },
+
+    step: function(dt) {
+      var peasantAlive = this.stage.detect(function() {
+        return this.p.health && this.p.health > 0 && this.p.team && this.p.team === 'peasants';
+      });
+      var sireAlive = this.stage.detect(function() {
+        return this.p.health && this.p.health > 0 && this.p.team && this.p.team === 'sires';
+      });
+
+      if (!peasantAlive) {
+        this._endGame('peasants');
+      }
+      else if (!sireAlive) {
+        this._endGame('sires');
+      }
+    }
+  });
+
 
   //
   // Scenes
@@ -910,6 +939,9 @@ window.addEventListener('load',function(e) {
     // Spawn an initial wave of middle-level fighters to start things off.
     peasantSpawner.spawnWave('pitchfork_peasant');
     sireSpawner.spawnWave('lord');
+
+    // Create the entity that does win condition detection.
+    stage.insert(new Q.WinConditionDetector());
 
     // Draw the background before each render.
     stage.on('prerender', function(ctx) {
@@ -1012,6 +1044,37 @@ window.addEventListener('load',function(e) {
     stage.on('prerender', function(ctx) {
       ctx.drawImage(Q.asset('gui.png'), 0, 0);
     });
+  });
+
+  // The scene displayed at the end of the game.
+  Q.scene("endGame", function(stage) {
+    var container = stage.insert(new Q.UI.Container({
+      fill: "gray",
+      border: 5,
+      shadow: 10,
+      shadowColor: "rgba(0,0,0,0.5)",
+      x: Q.width / 2,
+      y: Q.height / 2
+    }));
+
+    stage.insert(
+      new Q.UI.Button(
+        {
+          label: "Play",
+          x: 0,
+          y: 0,
+          fill: "#990000",
+          border: 5,
+          shadow: 10,
+          shadowColor: "rgba(0,0,0,0.5)"
+        },
+        function() {
+          Q.stageScene("battlefield", 0, { sort: true });
+          Q.stageScene("battlefieldGUI", 1, { sort: true });
+        }),
+      container);
+
+    container.fit(20,20);
   });
 
 
