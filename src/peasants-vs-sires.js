@@ -374,6 +374,39 @@ window.addEventListener('load',function(e) {
     }
   });
 
+  //
+  // A component which runs a fighter off the edge of the screen. Used on
+  // surviving fighters after a game has ended.
+  //
+  Q.component('runForward', {
+    defaults: {
+      // The entity's speed.
+      speed: 25,
+      // The direction it should run ('front' or 'back').
+      direction: 'front'
+    },
+
+    added: function() {
+      var p = this.entity.p;
+      Q._defaults(p, this.defaults);
+      this.entity.on('step', this, 'step');
+      this.entity.play(p.direction === 'front' ? 'running_front' : 'running_back');
+    },
+
+    step: function(dt) {
+      var p = this.entity.p;
+
+      if (p.direction === 'front') {
+        p.x -= dt * p.speed;
+        p.y += dt * p.speed/2;
+      }
+      else if (p.direction === 'back') {
+        p.x += dt * p.speed;
+        p.y -= dt * p.speed/2;
+      }
+    }
+  });
+
 
 
   //
@@ -849,7 +882,27 @@ window.addEventListener('load',function(e) {
   Q.Sprite.extend("WinConditionDetector", {
     // Stages the endgame popup scene for the appropriate winner.
     _endGame: function(winner) {
+      // Set the surviving fighters to run off the edge of the stage.
+      Q.stage(0).each(function() {
+        if (!this.p.team || !this.p.health || this.p.health < 0) {
+          return;
+        }
+
+        if (this.p.team === 'peasants') {
+          this.p.direction = 'back';
+        }
+        else if (this.p.team === 'sires') {
+          this.p.direction = 'front';
+        }
+
+        this.del('homing');
+        this.del('combat');
+        this.add('runForward');
+      });
+
+      // Freeze the GUI stage.
       Q.stage(1).pause();
+
       Q.stageScene('endGame', 2, {
         winner: winner
       });
