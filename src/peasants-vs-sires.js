@@ -551,7 +551,7 @@ window.addEventListener('load',function(e) {
     init: function(p) {
       this._super(p, {
         sheet: 'knight',
-        health: 40,
+        health: 36,
         attack: 2
       });
     }
@@ -561,7 +561,7 @@ window.addEventListener('load',function(e) {
     init: function(p) {
       this._super(p, {
         sheet: 'lord',
-        health: 60,
+        health: 54,
         attack: 3
       });
     }
@@ -571,7 +571,7 @@ window.addEventListener('load',function(e) {
     init: function(p) {
       this._super(p, {
         sheet: 'king',
-        health: 80,
+        health: 72,
         attack: 4
       });
     }
@@ -1109,10 +1109,12 @@ window.addEventListener('load',function(e) {
     stage.insert(timelineManager);
 
     // Add some items to the timelines to start things off.
-    peasantTimeline.addItems(['pitchfork_peasant'], 0.3);
-    peasantTimeline.addItems(['pitchfork_peasant'], 0.6);
-    sireTimeline.addItems(['lord'], 0.3);
-    sireTimeline.addItems(['lord'], 0.6);
+    peasantTimeline.addItems(['pitchfork_peasant'], 0.1);
+    peasantTimeline.addItems(['pitchfork_peasant'], 0.55);
+    peasantTimeline.addItems(['pitchfork_peasant']);
+    sireTimeline.addItems(['lord'], 0.1);
+    sireTimeline.addItems(['lord'], 0.55);
+    sireTimeline.addItems(['lord']);
 
     // Draw the GUI before each render.
     stage.on('prerender', function(ctx) {
