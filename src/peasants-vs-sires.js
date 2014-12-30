@@ -1,30 +1,6 @@
-window.addEventListener('load',function(e) {
-  //
-  // Instantiating and configuring Quintus.
-  //
-  var Q = Quintus({
-    imagePath: "assets/images/",
-    dataPath:  "assets/data/",
-  })
-  .include("Sprites, Scenes, Input, Anim, 2D, Touch, UI")
-  .setup("quintusContainer")
-  .touch();
-
-  Q.input.keyboardControls({
-    81: "peasantHelp",   // Q
-    87: "peasantFight",  // W
-    79: "sireHelp",      // O
-    80: "sireFight"      // P
-  });
-
-  // Quintus enables platformer-style gravity by default on anything with the
-  // '2d' component. If you ask me, the default should be no gravity, but we
-  // have to set that ourselves.
-  Q.gravityX = 0;
-  Q.gravityY = 0;
-
-  // Reset global game state.
-  Q.state.reset({
+// Resets global game state.
+function resetState(q) {
+  q.state.reset({
     // Array of reinforcements available to the peasant player.
     availablePeasants: [],
     // Array of reinforcements available to the sire player.
@@ -42,7 +18,36 @@ window.addEventListener('load',function(e) {
     // Count of the number of kings who have died.
     kingLosses: 0
   });
+}
 
+window.addEventListener('load',function(e) {
+  //
+  // Instantiating and configuring Quintus.
+  //
+  var Q = Quintus({
+    imagePath: "assets/images/",
+    dataPath:  "assets/data/",
+  })
+  .include("Sprites, Scenes, Input, Anim, 2D, Touch, UI")
+  .setup("quintusContainer")
+  .touch();
+
+  Q.input.keyboardControls({
+    32: "space",         // SPACE
+    81: "peasantHelp",   // Q
+    87: "peasantFight",  // W
+    79: "sireHelp",      // O
+    80: "sireFight"      // P
+  });
+
+  // Quintus enables platformer-style gravity by default on anything with the
+  // '2d' component. If you ask me, the default should be no gravity, but we
+  // have to set that ourselves.
+  Q.gravityX = 0;
+  Q.gravityY = 0;
+
+  // Reset global game state.
+  resetState(Q);
 
   //
   // A component for automatically homing in on entities which satisfy a
@@ -1124,11 +1129,10 @@ window.addEventListener('load',function(e) {
 
   // The scene displayed at the end of the game.
   Q.scene("endGame", function(stage) {
-    var container = stage.insert(new Q.UI.Container({
-      fill: "gray",
-      border: 2,
+    stage.insert(new Q.Sprite({
+      asset: "endgame_popup_background.png",
       x: Q.width / 2,
-      y: 400
+      y: 440
     }));
 
     if (stage.options.winner === 'peasants') {
@@ -1142,31 +1146,33 @@ window.addEventListener('load',function(e) {
     }
 
     stage.insert(new Q.UI.Text({ 
-      label: "The " + stage.options.winner + " are victorious!\n\nCost of victory: " + cost,
+      label: "The " + stage.options.winner + " are victorious!",
       color: "black",
       size: 16,
-      x: 0,
-      y: 0
-    }), container);
+      x: Q.width / 2,
+      y: 405
+    }));
+    stage.insert(new Q.UI.Text({ 
+      label: "Cost of victory: " + cost,
+      color: "black",
+      size: 16,
+      x: Q.width / 2,
+      y: 430
+    }));
+    stage.insert(new Q.UI.Text({ 
+      label: "Press SPACE to play again.",
+      color: "black",
+      size: 16,
+      x: Q.width / 2,
+      y: 480
+    }));
 
-    stage.insert(
-      new Q.UI.Button(
-        {
-          label: "Restart",
-          size: 16,
-          x: 0,
-          y: 60,
-          fill: "#990000",
-          border: 2,
-        },
-        function() {
-          Q.clearStages();
-          Q.stageScene("battlefield", 0, { sort: true });
-          Q.stageScene("battlefieldGUI", 1, { sort: true });
-        }),
-      container);
-
-    container.fit(20,20);
+    Q.input.on('space', function() {
+      resetState(Q);
+      Q.clearStages();
+      Q.stageScene("battlefield", 0, { sort: true });
+      Q.stageScene("battlefieldGUI", 1, { sort: true });
+    });
   });
 
 
@@ -1188,7 +1194,8 @@ window.addEventListener('load',function(e) {
       "armed_peasant.png, armed_peasant.json, " +
       "knight.png, knight.json, " +
       "lord.png, lord.json, " +
-      "king.png, king.json",
+      "king.png, king.json, " +
+      "endgame_popup_background.png",
     function() {
         Q.compileSheets("poor_peasant.png","poor_peasant.json");
         Q.compileSheets("pitchfork_peasant.png","pitchfork_peasant.json");

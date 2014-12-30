@@ -1,4 +1,3 @@
-* Create graphic for the endgame popup box
 * Create main menu background graphics
 * Create main menu button graphics
 * Create scenes and manager sprites for a dynamic main menu
