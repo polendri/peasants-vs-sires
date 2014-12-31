@@ -25,12 +25,15 @@ window.addEventListener('load',function(e) {
   // Instantiating and configuring Quintus.
   //
   var Q = Quintus({
+    audioPath: "assets/audio/",
     imagePath: "assets/images/",
     dataPath:  "assets/data/",
+    audioSupported: ['mp3', 'wav']
   })
-  .include("Sprites, Scenes, Input, Anim, 2D, Touch, UI")
+  .include("Sprites, Scenes, Input, Anim, 2D, Touch, UI, Audio")
   .setup("quintusContainer")
-  .touch();
+  .touch()
+  .enableSound();
 
   Q.input.keyboardControls({
     32: "space",         // SPACE
@@ -341,6 +344,7 @@ window.addEventListener('load',function(e) {
       var p = this.entity.p;
 
       if (p.attackTarget && p.attackTarget.takeDamage) {
+        Q.audio.play(p.strikeSound, 0.1);
         p.attackTarget.takeDamage(p.attack * (1.0 + (2*Math.random() - 1) * p.attackVariance));
       }
 
@@ -370,6 +374,7 @@ window.addEventListener('load',function(e) {
 
           this.trigger('dead');
           this.play("dying_" + this.p.facing);
+          Q.audio.play("death.mp3", 0.1);
           this.del('combat');
           this.del('homing');
           this.del('2d');
@@ -503,6 +508,7 @@ window.addEventListener('load',function(e) {
           return t.has('combat') && t.p.health > 0 && t.p.team === "sires";
         };
         defaultProps.facing = "back";
+        defaultProps.strikeSound = 'peasant_strike.mp3';
         this._super(props, defaultProps);
       }
   });
@@ -548,6 +554,7 @@ window.addEventListener('load',function(e) {
           return t.has('combat') && t.p.health > 0 && t.p.team === "peasants";
         };
         defaultProps.facing = "front";
+        defaultProps.strikeSound = 'sire_strike.mp3';
         this._super(props, defaultProps);
       }
   });
@@ -1301,7 +1308,8 @@ window.addEventListener('load',function(e) {
       "king.png, king.json, " +
       "main_menu.png, " +
       "play_button.png, " +
-      "endgame_popup_background.png",
+      "endgame_popup_background.png, " +
+      "death.mp3, peasant_strike.mp3, sire_strike.mp3",
     function() {
         Q.compileSheets("poor_peasant.png","poor_peasant.json");
         Q.compileSheets("pitchfork_peasant.png","pitchfork_peasant.json");
