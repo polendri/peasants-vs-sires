@@ -882,6 +882,57 @@ window.addEventListener('load',function(e) {
     }
   });
 
+  // Manages spawning fighters on the battlefield, ensuring that there is
+  // always at least one peasant and at least one sire on the battlefield.
+  // It subclasses 'Sprite' because only Sprite defines the 'step' function.
+  Q.SpawnerManager.extend("ContinuousSpawnerManager", {
+    // Returns a random peasant type.
+    _randomPeasant: function() {
+      var i = Math.floor(Math.random() * 3);
+      if (i == 0) {
+        return 'poor_peasant';
+      } else if (i == 1) {
+        return 'pitchfork_peasant';
+      } else {
+        return 'armed_peasant';
+      }
+    },
+
+    // Returns a random sire type.
+    _randomSire: function() {
+      var i = Math.floor(Math.random() * 3);
+      if (i == 0) {
+        return 'knight';
+      } else if (i == 1) {
+        return 'lord';
+      } else {
+        return 'king';
+      }
+    },
+
+    step: function(dt) {
+      var peasantCount = 0;
+      Q.stage(0).each(function() {
+        if (this.p.team && this.p.team === 'peasants' && this.p.health && this.p.health > 0) {
+          peasantCount++;
+        }
+      });
+      var sireCount = 0;
+      Q.stage(0).each(function() {
+        if (this.p.team && this.p.team === 'sires' && this.p.health && this.p.health > 0) {
+          sireCount++;
+        }
+      });
+
+      if (peasantCount <= 10) {
+        this.p.spawnPeasantsFunc(this._randomPeasant());
+      }
+      if (sireCount <= 1) {
+        this.p.spawnSireFunc(this._randomSire());
+      }
+    }
+  });
+
   // Detects win conditions and stages the endgame scene.
   // It subclasses 'Sprite' because only Sprite defines the 'step' function.
   Q.Sprite.extend("WinConditionDetector", {
@@ -943,7 +994,7 @@ window.addEventListener('load',function(e) {
       shadow: 10,
       shadowColor: "rgba(0,0,0,0.5)",
       x: Q.width / 2,
-      y: Q.height / 2
+      y: 500
     }));
 
     stage.insert(
@@ -958,12 +1009,82 @@ window.addEventListener('load',function(e) {
           shadowColor: "rgba(0,0,0,0.5)"
         },
         function() {
+          Q.clearStages();
           Q.stageScene("battlefield", 0, { sort: true });
           Q.stageScene("battlefieldGUI", 1, { sort: true });
         }),
       container);
 
     container.fit(20,20);
+
+    // Draw the title art before each render.
+    stage.on('prerender', function(ctx) {
+      ctx.drawImage(Q.asset('main_menu.png'), 0, 0);
+    });
+  });
+
+  // A scene for background battles taking place in menus.
+  Q.scene("backgroundBattlefield", function(stage) {
+    // Create peasant and sire spawners and add them to the stage.
+    var peasantSpawner = new Q.Spawner({
+        x: 500,
+        y: 300,
+        waveSize: 10,
+        spawnFuncs: {
+          poor_peasant: function(x, y) {
+            return new Q.PoorPeasant({ x: x, y: y});
+          },
+          pitchfork_peasant: function(x, y) {
+            return new Q.PitchforkPeasant({ x: x, y: y});
+          },
+          armed_peasant: function(x, y) {
+            return new Q.ArmedPeasant({ x: x, y: y});
+          }
+        }
+    });
+    stage.insert(peasantSpawner);
+    var sireSpawner = new Q.Spawner({
+        x: 580,
+        y: 270,
+        waveSize: 1,
+        spawnFuncs: {
+          knight: function(x, y) {
+            return new Q.Knight({ x: x, y: y});
+          },
+          lord: function(x, y) {
+            return new Q.Lord({ x: x, y: y});
+          },
+          king: function(x, y) {
+            return new Q.King({ x: x, y: y});
+          }
+        }
+    });
+    stage.insert(sireSpawner);
+
+    // Spawn an initial wave of middle-level fighters to start things off,
+    // then move the spawners back to the normal positions.
+    peasantSpawner.spawnWave('pitchfork_peasant');
+    sireSpawner.spawnWave('lord');
+    peasantSpawner.p.x = 100;
+    peasantSpawner.p.y = 500;
+    sireSpawner.p.x = 967;
+    sireSpawner.p.y = 100;
+
+    // Create a manager for the spawners and add it to the battlefield.
+    var spawnerManager = new Q.ContinuousSpawnerManager({
+      spawnPeasantsFunc: function(type) {
+        peasantSpawner.spawnWave(type);
+      },
+      spawnSireFunc: function(type) {
+        sireSpawner.spawnWave(type);
+      }
+    });
+    stage.insert(spawnerManager);
+
+    // Draw the background before each render.
+    stage.on('prerender', function(ctx) {
+      ctx.drawImage(Q.asset('background.png'), 0, 0);
+    });
   });
 
   // The scene where the main action happens.
@@ -1195,6 +1316,7 @@ window.addEventListener('load',function(e) {
       "knight.png, knight.json, " +
       "lord.png, lord.json, " +
       "king.png, king.json, " +
+      "main_menu.png, " +
       "endgame_popup_background.png",
     function() {
         Q.compileSheets("poor_peasant.png","poor_peasant.json");
@@ -1204,7 +1326,8 @@ window.addEventListener('load',function(e) {
         Q.compileSheets("lord.png","lord.json");
         Q.compileSheets("king.png","king.json");
 
-        Q.stageScene("mainMenu");
+        Q.stageScene("backgroundBattlefield", 0, { sort: true });
+        Q.stageScene("mainMenu", 1);
     });
 });
 
