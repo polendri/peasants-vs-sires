@@ -988,34 +988,17 @@ window.addEventListener('load',function(e) {
 
   // TODO: Make a proper main menu
   Q.scene("mainMenu", function(stage) {
-    var container = stage.insert(new Q.UI.Container({
-      fill: "gray",
-      border: 5,
-      shadow: 10,
-      shadowColor: "rgba(0,0,0,0.5)",
-      x: Q.width / 2,
-      y: 500
-    }));
-
-    stage.insert(
-      new Q.UI.Button(
-        {
-          label: "Play",
-          x: 0,
-          y: 0,
-          fill: "#990000",
-          border: 5,
-          shadow: 10,
-          shadowColor: "rgba(0,0,0,0.5)"
-        },
-        function() {
-          Q.clearStages();
-          Q.stageScene("battlefield", 0, { sort: true });
-          Q.stageScene("battlefieldGUI", 1, { sort: true });
-        }),
-      container);
-
-    container.fit(20,20);
+    stage.insert(new Q.UI.Button(
+      {
+        asset: "play_button.png",
+        x: Q.width/2,
+        y: 500
+      },
+      function() {
+        Q.clearStages();
+        Q.stageScene("battlefield", 0, { sort: true });
+        Q.stageScene("battlefieldGUI", 1, { sort: true });
+      }));
 
     // Draw the title art before each render.
     stage.on('prerender', function(ctx) {
@@ -1317,6 +1300,7 @@ window.addEventListener('load',function(e) {
       "lord.png, lord.json, " +
       "king.png, king.json, " +
       "main_menu.png, " +
+      "play_button.png, " +
       "endgame_popup_background.png",
     function() {
         Q.compileSheets("poor_peasant.png","poor_peasant.json");
