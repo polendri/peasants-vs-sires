@@ -1,5 +1,7 @@
-* Create main menu background graphics
-* Create main menu button graphics
-* Create scenes and manager sprites for a dynamic main menu
-* Implement main menu
-* Implement game AI
+* Fix fighter idle animation issue
+* Create endgame jingle
+* Add pause support
+* Create pixely title text
+* Add hover effects to title text
+* Add loading progress bar
+* Set up github pages branch

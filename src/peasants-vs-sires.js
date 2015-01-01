@@ -374,7 +374,7 @@ window.addEventListener('load',function(e) {
 
           this.trigger('dead');
           this.play("dying_" + this.p.facing);
-          Q.audio.play("death.mp3", 0.1);
+          Q.audio.play(this.p.deathSound, 0.1);
           this.del('combat');
           this.del('homing');
           this.del('2d');
@@ -509,6 +509,7 @@ window.addEventListener('load',function(e) {
         };
         defaultProps.facing = "back";
         defaultProps.strikeSound = 'peasant_strike.mp3';
+        defaultProps.deathSound = 'peasant_death.mp3';
         this._super(props, defaultProps);
       }
   });
@@ -555,6 +556,7 @@ window.addEventListener('load',function(e) {
         };
         defaultProps.facing = "front";
         defaultProps.strikeSound = 'sire_strike.mp3';
+        defaultProps.deathSound = 'sire_death.mp3';
         this._super(props, defaultProps);
       }
   });
@@ -598,13 +600,22 @@ window.addEventListener('load',function(e) {
         // The number of entities in each wave.
         waveSize: 1,
         // The variance, in pixels, to apply randomly to each spawned entity.
-        placementVariance: 50
+        placementVariance: 50,
+        // An optional sound resource to play each time a wave is spawned.
+        spawnSound: null,
+        // A hash of functions, each of which produces a new instance of a
+        // sprite to spawn.
+        spawnFuncs: {}
       });
     },
 
     // Spawns a new wave, using the function indicated by 'spawnKey' to
     // generate each entity.
     spawnWave: function(spawnKey) {
+      if (this.p.spawnSound) {
+        Q.audio.play(this.p.spawnSound);
+      }
+
       for (var i = 0; i < this.p.waveSize; i++) {
         var x = this.p.x + (2*Math.random() - 1) * this.p.placementVariance;
         var y = this.p.y + (2*Math.random() - 1) * this.p.placementVariance;
@@ -657,6 +668,8 @@ window.addEventListener('load',function(e) {
         targetX: 0,
         // Whether or not the target has been reached.
         targetReached: false,
+        // Optional sound to be played when the target has been reached.
+        targetReachedSound: null
       });
 
       this.add("animation");
@@ -676,6 +689,10 @@ window.addEventListener('load',function(e) {
         : this.p.x >= this.p.targetX;
 
       if (targetReached) {
+        if (this.p.targetReachedSound) {
+          Q.audio.play(this.p.targetReachedSound);
+        }
+
         this.p.targetReached = true;
         this.p.x = this.p.targetX;
         this.play(this.p.direction === 'left' ? 'idle_front' : 'idle_left');
@@ -744,7 +761,8 @@ window.addEventListener('load',function(e) {
           sheet: itemName,
           direction: this.p.direction,
           speed: speed,
-          targetX: this.p.x - 14 + (this.p.direction === 'left' ? 0 : this.p.width - 1)
+          targetX: this.p.x - 14 + (this.p.direction === 'left' ? 0 : this.p.width - 1),
+          targetReachedSound: this.p.team === 'peasants' ? "peasant_ready.mp3" : "sire_ready.mp3"
         }));
 
         this.p.itemCounter--;
@@ -819,6 +837,7 @@ window.addEventListener('load',function(e) {
       var availablePeasants = Q.state.get('availablePeasants');
 
       if (availablePeasants.length > 0) {
+        Q.audio.play("peasant_help.mp3");
         availablePeasants.shift().destroy();
         this.p.addPeasantItems([this._randomPeasant(), this._randomPeasant()]);
       }
@@ -844,6 +863,7 @@ window.addEventListener('load',function(e) {
       var availableSires = Q.state.get('availableSires');
 
       if (availableSires.length > 0) {
+        Q.audio.play("sire_help.mp3");
         availableSires.shift().destroy();
         this.p.addSireItems([this._randomSire(), this._randomSire()]);
       }
@@ -945,6 +965,8 @@ window.addEventListener('load',function(e) {
   Q.Sprite.extend("WinConditionDetector", {
     // Stages the endgame popup scene for the appropriate winner.
     _endGame: function(winner) {
+      Q.audio.stop();
+
       // Set the surviving fighters to run off the edge of the stage.
       Q.stage(0).each(function() {
         if (!this.p.team || !this.p.health || this.p.health < 0) {
@@ -993,8 +1015,10 @@ window.addEventListener('load',function(e) {
   // Scenes
   //
 
-  // TODO: Make a proper main menu
+  // Contains the main menu GUI content.
   Q.scene("mainMenu", function(stage) {
+    Q.audio.play("title_theme.mp3", { loop: true });
+
     stage.insert(new Q.UI.Button(
       {
         asset: "play_button.png",
@@ -1002,6 +1026,7 @@ window.addEventListener('load',function(e) {
         y: 500
       },
       function() {
+        Q.audio.stop();
         Q.clearStages();
         Q.stageScene("battlefield", 0, { sort: true });
         Q.stageScene("battlefieldGUI", 1, { sort: true });
@@ -1020,6 +1045,7 @@ window.addEventListener('load',function(e) {
         x: 500,
         y: 300,
         waveSize: 10,
+        spawnSound: "peasant_spawn.mp3",
         spawnFuncs: {
           poor_peasant: function(x, y) {
             return new Q.PoorPeasant({ x: x, y: y});
@@ -1037,6 +1063,7 @@ window.addEventListener('load',function(e) {
         x: 580,
         y: 270,
         waveSize: 1,
+        spawnSound: "sire_spawn.mp3",
         spawnFuncs: {
           knight: function(x, y) {
             return new Q.Knight({ x: x, y: y});
@@ -1084,6 +1111,7 @@ window.addEventListener('load',function(e) {
         x: 100,
         y: 500,
         waveSize: 10,
+        spawnSound: "peasant_spawn.mp3",
         spawnFuncs: {
           poor_peasant: function(x, y) {
             return new Q.PoorPeasant({ x: x, y: y});
@@ -1101,6 +1129,7 @@ window.addEventListener('load',function(e) {
         x: 967,
         y: 100,
         waveSize: 1,
+        spawnSound: "sire_spawn.mp3",
         spawnFuncs: {
           knight: function(x, y) {
             return new Q.Knight({ x: x, y: y});
@@ -1240,6 +1269,8 @@ window.addEventListener('load',function(e) {
 
   // The scene displayed at the end of the game.
   Q.scene("endGame", function(stage) {
+    Q.audio.play("victory.mp3");
+
     stage.insert(new Q.Sprite({
       asset: "endgame_popup_background.png",
       x: Q.width / 2,
@@ -1309,7 +1340,9 @@ window.addEventListener('load',function(e) {
       "main_menu.png, " +
       "play_button.png, " +
       "endgame_popup_background.png, " +
-      "death.mp3, peasant_strike.mp3, sire_strike.mp3",
+      "title_theme.mp3, victory.mp3, " +
+      "peasant_ready.mp3, peasant_help.mp3, peasant_spawn.mp3, peasant_strike.mp3, peasant_death.mp3, " +
+      "sire_ready.mp3, sire_help.mp3, sire_spawn.mp3, sire_strike.mp3, sire_death.mp3",
     function() {
         Q.compileSheets("poor_peasant.png","poor_peasant.json");
         Q.compileSheets("pitchfork_peasant.png","pitchfork_peasant.json");
