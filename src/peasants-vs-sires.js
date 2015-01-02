@@ -1,6 +1,8 @@
 // Resets global game state.
 function resetState(q) {
   q.state.reset({
+    // Whether or not audio is enabled for the game.
+    audioEnabled: true,
     // Array of reinforcements available to the peasant player.
     availablePeasants: [],
     // Array of reinforcements available to the sire player.
@@ -344,7 +346,9 @@ window.addEventListener('load',function(e) {
       var p = this.entity.p;
 
       if (p.attackTarget && p.attackTarget.takeDamage) {
-        Q.audio.play(p.strikeSound, 0.1);
+        if (Q.state.get('audioEnabled')) {
+          Q.audio.play(p.strikeSound, 0.1);
+        }
         p.attackTarget.takeDamage(p.attack * (1.0 + (2*Math.random() - 1) * p.attackVariance));
       }
 
@@ -374,7 +378,9 @@ window.addEventListener('load',function(e) {
 
           this.trigger('dead');
           this.play("dying_" + this.p.facing);
-          Q.audio.play(this.p.deathSound, 0.1);
+          if (Q.state.get('audioEnabled')) {
+            Q.audio.play(this.p.deathSound, 0.1);
+          }
           this.del('combat');
           this.del('homing');
           this.del('2d');
@@ -579,7 +585,7 @@ window.addEventListener('load',function(e) {
     // Spawns a new wave, using the function indicated by 'spawnKey' to
     // generate each entity.
     spawnWave: function(spawnKey) {
-      if (this.p.spawnSound) {
+      if (Q.state.get('audioEnabled') && this.p.spawnSound) {
         Q.audio.play(this.p.spawnSound);
       }
 
@@ -656,7 +662,7 @@ window.addEventListener('load',function(e) {
         : this.p.x >= this.p.targetX;
 
       if (targetReached) {
-        if (this.p.targetReachedSound) {
+        if (Q.state.get('audioEnabled') && this.p.targetReachedSound) {
           Q.audio.play(this.p.targetReachedSound);
         }
 
@@ -804,7 +810,9 @@ window.addEventListener('load',function(e) {
       var availablePeasants = Q.state.get('availablePeasants');
 
       if (availablePeasants.length > 0) {
-        Q.audio.play("peasant_help.mp3");
+        if (Q.state.get('audioEnabled')) {
+          Q.audio.play("peasant_help.mp3");
+        }
         availablePeasants.shift().destroy();
         this.p.addPeasantItems([this._randomPeasant(), this._randomPeasant()]);
       }
@@ -830,7 +838,9 @@ window.addEventListener('load',function(e) {
       var availableSires = Q.state.get('availableSires');
 
       if (availableSires.length > 0) {
-        Q.audio.play("sire_help.mp3");
+        if (Q.state.get('audioEnabled')) {
+          Q.audio.play("sire_help.mp3");
+        }
         availableSires.shift().destroy();
         this.p.addSireItems([this._randomSire(), this._randomSire()]);
       }
@@ -957,6 +967,7 @@ window.addEventListener('load',function(e) {
       Q.stageScene('endGame', 2, {
         winner: winner
       });
+      Q.stageScene('audioToggle', 3, { toggled: Q.state.get('audioEnabled') });
     },
 
     step: function(dt) {
@@ -983,7 +994,9 @@ window.addEventListener('load',function(e) {
 
   // Contains the main menu GUI content.
   Q.scene("mainMenu", function(stage) {
-    Q.audio.play("title_theme.mp3", { loop: true });
+    if (Q.state.get('audioEnabled')) {
+      Q.audio.play("title_theme.mp3", { loop: true });
+    }
 
     stage.insert(new Q.UI.Button(
       {
@@ -994,8 +1007,9 @@ window.addEventListener('load',function(e) {
       function() {
         Q.audio.stop();
         Q.clearStages();
-        Q.stageScene("battlefield", 0, { sort: true });
-        Q.stageScene("battlefieldGUI", 1, { sort: true });
+        Q.stageScene('battlefield', 0, { sort: true });
+        Q.stageScene('battlefieldGUI', 1, { sort: true });
+        Q.stageScene('audioToggle', 2, { toggled: Q.state.get('audioEnabled') });
       }));
 
     // Draw the title art before each render.
@@ -1233,14 +1247,39 @@ window.addEventListener('load',function(e) {
     });
   });
 
+  // The scene which shows the audio toggle button.
+  // This is a scene so that we can overlay it on top of arbitrary other
+  // scenes.
+  Q.scene("audioToggle", function(stage) {
+    // Create indicators for each of the buttons and add them to the stage.
+    var audioToggleButton = new Q.UI.Button(
+      {
+        x: 23,
+        y: Q.height - 19,
+        asset: stage.options.toggled ? "audio_on.png" : "audio_off.png",
+        toggled: stage.options.toggled
+      },
+      function() {
+        this.p.toggled = !this.p.toggled;
+        this.p.asset = this.p.toggled ? "audio_on.png" : "audio_off.png";
+        Q.state.set('audioEnabled', this.p.toggled);
+        if (!this.p.toggled) {
+          Q.audio.stop();
+        }
+      });
+    stage.insert(audioToggleButton);
+  });
+
   // The scene displayed at the end of the game.
   Q.scene("endGame", function(stage) {
-    Q.audio.play("victory1.mp3");
-    window.setTimeout(
-      function() {
-        Q.audio.play("victory2.mp3", { loop: true });
-      },
-      4800);
+    if (Q.state.get('audioEnabled')) {
+      Q.audio.play("victory1.mp3");
+      window.setTimeout(
+        function() {
+          Q.audio.play("victory2.mp3", { loop: true });
+        },
+        4800);
+    }
 
     stage.insert(new Q.Sprite({
       asset: "endgame_popup_background.png",
@@ -1284,8 +1323,9 @@ window.addEventListener('load',function(e) {
       resetState(Q);
       Q.audio.stop();
       Q.clearStages();
-      Q.stageScene("battlefield", 0, { sort: true });
-      Q.stageScene("battlefieldGUI", 1, { sort: true });
+      Q.stageScene('battlefield', 0, { sort: true });
+      Q.stageScene('battlefieldGUI', 1, { sort: true });
+      Q.stageScene('audioToggle', 2, { toggled: Q.state.get('audioEnabled') });
     });
   });
 
@@ -1312,6 +1352,7 @@ window.addEventListener('load',function(e) {
       "main_menu.png, " +
       "play_button.png, " +
       "endgame_popup_background.png, " +
+      "audio_on.png, audio_off.png, " +
       "title_theme.mp3, victory1.mp3, victory2.mp3, " +
       "peasant_ready.mp3, peasant_help.mp3, peasant_spawn.mp3, peasant_strike.mp3, peasant_death.mp3, " +
       "sire_ready.mp3, sire_help.mp3, sire_spawn.mp3, sire_strike.mp3, sire_death.mp3",
@@ -1325,6 +1366,7 @@ window.addEventListener('load',function(e) {
 
         Q.stageScene("backgroundBattlefield", 0, { sort: true });
         Q.stageScene("mainMenu", 1);
+        Q.stageScene("audioToggle", 2, { toggled: true });
     });
 });
 
