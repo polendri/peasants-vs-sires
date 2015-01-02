@@ -384,39 +384,6 @@ window.addEventListener('load',function(e) {
     }
   });
 
-  //
-  // A component which runs a fighter off the edge of the screen. Used on
-  // surviving fighters after a game has ended.
-  //
-  Q.component('runForward', {
-    defaults: {
-      // The entity's speed.
-      speed: 25,
-      // The direction it should run ('front' or 'back').
-      direction: 'front'
-    },
-
-    added: function() {
-      var p = this.entity.p;
-      Q._defaults(p, this.defaults);
-      this.entity.on('step', this, 'step');
-      this.entity.play(p.direction === 'front' ? 'running_front' : 'running_back');
-    },
-
-    step: function(dt) {
-      var p = this.entity.p;
-
-      if (p.direction === 'front') {
-        p.x -= dt * p.speed;
-        p.y += dt * p.speed/2;
-      }
-      else if (p.direction === 'back') {
-        p.x += dt * p.speed;
-        p.y -= dt * p.speed/2;
-      }
-    }
-  });
-
 
 
   //
@@ -982,10 +949,9 @@ window.addEventListener('load',function(e) {
 
         this.del('homing');
         this.del('combat');
-        this.add('runForward');
       });
 
-      // Freeze the GUI stage.
+      Q.stage(0).pause();
       Q.stage(1).pause();
 
       Q.stageScene('endGame', 2, {
@@ -1269,7 +1235,12 @@ window.addEventListener('load',function(e) {
 
   // The scene displayed at the end of the game.
   Q.scene("endGame", function(stage) {
-    Q.audio.play("victory.mp3");
+    Q.audio.play("victory1.mp3");
+    window.setTimeout(
+      function() {
+        Q.audio.play("victory2.mp3", { loop: true });
+      },
+      4800);
 
     stage.insert(new Q.Sprite({
       asset: "endgame_popup_background.png",
@@ -1311,6 +1282,7 @@ window.addEventListener('load',function(e) {
 
     Q.input.on('space', function() {
       resetState(Q);
+      Q.audio.stop();
       Q.clearStages();
       Q.stageScene("battlefield", 0, { sort: true });
       Q.stageScene("battlefieldGUI", 1, { sort: true });
@@ -1340,7 +1312,7 @@ window.addEventListener('load',function(e) {
       "main_menu.png, " +
       "play_button.png, " +
       "endgame_popup_background.png, " +
-      "title_theme.mp3, victory.mp3, " +
+      "title_theme.mp3, victory1.mp3, victory2.mp3, " +
       "peasant_ready.mp3, peasant_help.mp3, peasant_spawn.mp3, peasant_strike.mp3, peasant_death.mp3, " +
       "sire_ready.mp3, sire_help.mp3, sire_spawn.mp3, sire_strike.mp3, sire_death.mp3",
     function() {
