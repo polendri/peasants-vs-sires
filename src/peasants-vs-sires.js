@@ -1,7 +1,7 @@
 // Resets global game state.
 function resetState(q) {
   q.state.reset({
-    // Whether or not audio is enabled for the game.
+    paused: false,
     audioEnabled: true,
     // Array of reinforcements available to the peasant player.
     availablePeasants: [],
@@ -38,11 +38,12 @@ window.addEventListener('load',function(e) {
   .enableSound();
 
   Q.input.keyboardControls({
-    32: "space",         // SPACE
-    81: "peasantHelp",   // Q
-    87: "peasantFight",  // W
-    79: "sireHelp",      // O
-    80: "sireFight"      // P
+    27: 'escape',        // ESC
+    32: 'space',         // SPACE
+    81: 'peasantHelp',   // Q
+    87: 'peasantFight',  // W
+    79: 'sireHelp',      // O
+    80: 'sireFight'      // P
   });
 
   // Quintus enables platformer-style gravity by default on anything with the
@@ -53,6 +54,19 @@ window.addEventListener('load',function(e) {
 
   // Reset global game state.
   resetState(Q);
+
+  // Implement a crude pausing mechanism by toggling the pause state of the
+  // entire game when SPACE is pressed.
+  Q.input.on('escape', function() {
+    var paused = !Q.state.get('paused');
+    Q.state.set('paused', paused);
+    if (paused) {
+      Q.pauseGame();
+    }
+    else {
+      Q.unpauseGame();
+    }
+  });
 
   //
   // A component for automatically homing in on entities which satisfy a
