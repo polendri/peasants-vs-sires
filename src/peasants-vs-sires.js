@@ -1405,6 +1405,12 @@ window.addEventListener('load',function(e) {
         Q.stageScene("backgroundBattlefield", 0, { sort: true });
         Q.stageScene("mainMenu", 1);
         Q.stageScene("audioToggle", 2, { toggled: true });
+    },
+    {
+      progressCallback: function(loaded, total) {
+        var element = document.getElementById("loading_progress");
+        element.style.width = Math.floor(loaded/total*100) + "%";
+      }
     });
 });
 
