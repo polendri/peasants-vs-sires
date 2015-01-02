@@ -963,11 +963,9 @@ window.addEventListener('load',function(e) {
 
       Q.stage(0).pause();
       Q.stage(1).pause();
-
-      Q.stageScene('endGame', 2, {
+      Q.stageScene('endGame', 3, {
         winner: winner
       });
-      Q.stageScene('audioToggle', 3, { toggled: Q.state.get('audioEnabled') });
     },
 
     step: function(dt) {
@@ -1006,10 +1004,10 @@ window.addEventListener('load',function(e) {
       },
       function() {
         Q.audio.stop();
-        Q.clearStages();
+        Q.clearStage(0);
+        Q.clearStage(1);
         Q.stageScene('battlefield', 0, { sort: true });
         Q.stageScene('battlefieldGUI', 1, { sort: true });
-        Q.stageScene('audioToggle', 2, { toggled: Q.state.get('audioEnabled') });
       }));
 
     // Draw the title art before each render.
@@ -1322,10 +1320,11 @@ window.addEventListener('load',function(e) {
     Q.input.on('space', function() {
       resetState(Q);
       Q.audio.stop();
-      Q.clearStages();
+      Q.clearStage(0);
+      Q.clearStage(1);
+      Q.clearStage(3);
       Q.stageScene('battlefield', 0, { sort: true });
       Q.stageScene('battlefieldGUI', 1, { sort: true });
-      Q.stageScene('audioToggle', 2, { toggled: Q.state.get('audioEnabled') });
     });
   });
 
