@@ -1,4 +1,3 @@
-* Fix fighter idle animation issue
 * Add loading progress bar
 * Set up github pages branch
 * Re-evaluate game balance

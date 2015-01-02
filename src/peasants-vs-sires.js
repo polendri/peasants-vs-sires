@@ -329,10 +329,6 @@ window.addEventListener('load',function(e) {
 
       if (p.cooldownCounter > 0) {
         p.cooldownCounter -= dt;
-
-        if (p.cooldownCounter <= 0) {
-          this.entity.trigger('attackEnd');
-        }
       }
 
       // Try to find an attack target if we don't have a valid one.
@@ -462,7 +458,7 @@ window.addEventListener('load',function(e) {
       });
 
       this.on('homingEnded', function(target) {
-        this.play("idle_" + this.p.facing);
+        this.play("ready_" + this.p.facing);
       });
 
       this.on('destroy', function() {
