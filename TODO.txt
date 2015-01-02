@@ -1,7 +1,5 @@
 * Add pause support
 * Fix fighter idle animation issue
-* Create pixely title text
-* Add hover effects to title text
 * Add loading progress bar
 * Set up github pages branch
 * Re-evaluate game balance

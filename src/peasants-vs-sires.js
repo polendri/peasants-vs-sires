@@ -985,6 +985,28 @@ window.addEventListener('load',function(e) {
     }
   });
 
+  // An otherwise static sprite that hovers up and down steadily.
+  Q.Sprite.extend("HoverSprite", {
+    init: function(p) {
+      this._super(p, {
+        // The amount to hover up and down from the original y-location.
+        amplitude: 3,
+        // The time it takes to hover up, down and back to level again.
+        period: 2,
+        // The y-coordinate around which the hovering happens.
+        centerY: p.y,
+        // The elapsed time since hovering started (supplied to the
+        // function that determines the height).
+        elapsed: 0
+      });
+    },
+
+    step: function(dt) {
+      this.p.elapsed += dt;
+      this.p.y = this.p.centerY + this.p.amplitude * Math.sin(2*Math.PI * (this.p.elapsed/this.p.period));
+    }
+  });
+
 
   //
   // Scenes
@@ -1009,11 +1031,18 @@ window.addEventListener('load',function(e) {
         Q.stageScene('battlefield', 0, { sort: true });
         Q.stageScene('battlefieldGUI', 1, { sort: true });
       }));
-
-    // Draw the title art before each render.
-    stage.on('prerender', function(ctx) {
-      ctx.drawImage(Q.asset('main_menu.png'), 0, 0);
-    });
+    stage.insert(new Q.HoverSprite({
+      cx: 0,
+      cy: 0,
+      x: 16,
+      y: 16,
+      asset: "title.png"
+    }));
+    stage.insert(new Q.Sprite({
+      x: Q.width - 70,
+      y: Q.height - 23,
+      asset: "credits.png"
+    }));
   });
 
   // A scene for background battles taking place in menus.
@@ -1348,7 +1377,7 @@ window.addEventListener('load',function(e) {
       "knight.png, knight.json, " +
       "lord.png, lord.json, " +
       "king.png, king.json, " +
-      "main_menu.png, " +
+      "title.png, credits.png, " +
       "play_button.png, " +
       "endgame_popup_background.png, " +
       "audio_on.png, audio_off.png, " +
