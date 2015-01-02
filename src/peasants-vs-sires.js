@@ -1410,6 +1410,10 @@ window.addEventListener('load',function(e) {
       progressCallback: function(loaded, total) {
         var element = document.getElementById("loading_progress");
         element.style.width = Math.floor(loaded/total*100) + "%";
+        if (loaded === total) {
+          var element = document.getElementById("loading");
+          element.style.visibility = "hidden";
+        }
       }
     });
 });
