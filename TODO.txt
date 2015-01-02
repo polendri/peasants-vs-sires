@@ -1,2 +1,0 @@
-* Set up github pages branch
-* Re-evaluate game balance
